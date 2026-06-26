@@ -1,29 +1,26 @@
 # RemoteAcesso — Contexto do Projeto
 
-Aplicação de acesso remoto LAN em Electron + Node.js. Três componentes independentes com código compartilhado.
+Aplicação de acesso remoto LAN em Electron + Node.js. Um único componente distribuído (`app/`) com código compartilhado em `shared/`.
 
 ## Estrutura
 
 ```
 REMOTEACESSO/
-├── app/        — Painel combinado (agent + viewer numa janela só)
-├── agent/      — Apenas o lado servidor (quem compartilha a tela)
-├── viewer/     — Apenas o cliente (quem controla)
+├── app/        — Painel combinado (agent + viewer numa janela só) — único exe distribuído
 ├── shared/     — Código comum: crypto.js, logger.js, protocol.js
 ├── icon.ico / icon.png
-└── codesign.pfx
+├── codesign.pfx
+├── build-all.bat
+└── setup-all.nsi
 ```
 
 ## Versão atual: 1.1.1
-
-O único exe distribuído é `app/dist/Remote Acesso Setup 1.1.1.exe`.
-`agent/` e `viewer/` existem como código-fonte mas não são mais distribuídos separadamente — o `app/` já cobre ambos os modos.
 
 ## Stack
 
 - Electron 31 + Node.js
 - WebSocket (`ws`) para comunicação
-- NSIS para instaladores Windows
+- NSIS para instalador Windows
 - `electron-builder` para empacotar
 
 ## Protocolo (v2 — criptografado)
@@ -43,38 +40,37 @@ O único exe distribuído é `app/dist/Remote Acesso Setup 1.1.1.exe`.
 | `crypto.js` | ECDH P-256, AES-256-GCM, HKDF — funções: `createECDH`, `deriveKey`, `encrypt`, `decrypt`, `makeKexMessage`, `parseKexMessage` |
 | `logger.js` | Logger JSON estruturado → `AppData/Local/RemoteAcesso/logs/` |
 
-## App (painel combinado — `app/src/`)
+## App (`app/src/`)
 
 | Arquivo | Responsabilidade |
 |---|---|
 | `main.js` | Processo principal — gerencia todas as janelas, server, discovery, IPC |
 | `server.js` | WebSocket server do lado agent |
-| `capture.js` | Captura de tela via `desktopCapturer` |
+| `capture.js` | Captura de tela via `desktopCapturer` + `ImageCapture` |
 | `input.js` | Injeção de input via PowerShell |
 | `input_helper.ps1` | Script PS1 embutido para `MapVirtualKey` e SendInput |
+| `win-key-hook.js` | Hook WH_KEYBOARD_LL via PowerShell — suprime VK_LWIN/VK_RWIN no lado viewer |
 | `firewall.js` | Garante regras de firewall (porta 8765/TCP e 5454/UDP) |
 | `agent-discovery.js` | UDP broadcast — anuncia o agent na LAN |
 | `viewer-discovery.js` | UDP listener — descobre agents na LAN |
 | `updater.js` | Auto-update via GitHub Releases (`latest.yml`) |
 | `launcher.html` | Tela inicial (escolher agent ou viewer) |
 | `agent-ui.html` | UI do lado agent (senha, clipboard toggle, etc.) |
-| `viewer.html` | UI do lado viewer (lista de agents, conexão) |
+| `viewer.html` | UI do lado viewer (lista de agents, conexão, canvas) |
+| `viewer-app.js` | Lógica do renderer do viewer (canvas, input, chat, file transfer) |
+| `viewer-style.css` | Estilos do viewer |
 | `capture.html` | Janela oculta de captura de tela |
-
-## Agent standalone (`agent/src/`)
-
-Subconjunto do `app/`: `main.js`, `server.js`, `capture.js`, `input.js`, `input_helper.ps1`, `firewall.js`, `discovery.js`, `ui.html`, `preload.js`, `updater.js`.
-
-## Viewer standalone (`viewer/src/`)
-
-`main.js`, `discovery.js`, `firewall.js`, `preload.js`, `renderer/app.js`, `renderer/index.html`, `renderer/style.css`.
+| `preload-launcher.js` | Expõe `launcherAPI` → `launchAgent`, `launchViewer`, update |
+| `preload-agent.js` | Expõe `agentAPI` → init, viewerCount, captureError, toggleClipboard |
+| `preload-capture.js` | Expõe `electronAPI` → getSources, sendFrame, monitorList |
+| `preload-viewer.js` | Expõe `electronAPI` → connect, frame, input, chat, file, fullscreen |
 
 ## Build e publicação
 
 ```bash
 # Build:
 cd app && npm run build
-# Output: app\dist\Remote Acesso Setup 1.1.0.exe
+# Output: app\dist\Remote Acesso Setup 1.1.1.exe
 
 # Publicar (requer GH_TOKEN):
 cd app && npm run publish
@@ -82,10 +78,15 @@ cd app && npm run publish
 
 Auto-update via GitHub Releases (`silv4g4m3rs-wq/remote-acesso`), channel `latest` → `latest.yml`.
 
-## Instaladores NSIS
+## Instalador NSIS
 
-- `app/installer.nsi` — instalador manual do app (alternativo ao electron-builder)
-- `viewer/installer.nsh` — customInstall/customUnInstall: adiciona/remove regras de firewall via `netsh`
+`setup-all.nsi` — instalador manual do app (alternativo ao electron-builder).
+Instala em `%ProgramFiles%\Remote Acesso\`. Atalhos: desktop + menu iniciar.
+
+## Git / GitHub
+
+- Repo: `https://github.com/silv4g4m3rs-wq/remote-acesso`
+- Branch principal: `master`
 
 ## Problemas conhecidos / Decisões
 
@@ -106,6 +107,7 @@ agentServer.on('viewer-count', count => {
 - Usar `e.code` → `CODE_VK` para lookup de Virtual Key (não `e.key`)
 - Flag `ext: true` para teclas estendidas (Delete, Home, setas, AltGr, Win)
 - `releaseModifiers()` no evento `blur` do viewer
+- `win-key-hook.js` suprime VK_LWIN/VK_RWIN via `WH_KEYBOARD_LL` — necessário porque `preventDefault()` no browser não intercepta a tecla Win
 
 ### Clipboard
 - Desativado por padrão (toggle `chk-clip` na UI do agent)
@@ -115,23 +117,10 @@ agentServer.on('viewer-count', count => {
 - Agents descobertos máx: 50 (`MAX_AGENTS`)
 - FPS: 5–30 adaptativo, padrão 15
 
-## Build unificado
-
-`build-all.bat` — compila os três componentes e gera `dist\Remote Acesso Setup 1.1.0.exe` via `setup-all.nsi`.
-
-Instala em:
-- `%ProgramFiles%\Remote Acesso\App\` — painel completo
-- `%ProgramFiles%\Remote Acesso\Agent\` — agent standalone
-- `%ProgramFiles%\Remote Acesso\Viewer\` — viewer standalone
-
-Atalhos: desktop (`Remote Acesso`) + menu iniciar (`Remote Acesso`, `Remote Acesso Agent`, `Remote Acesso Viewer`, `Desinstalar`).
-
 ## Pendências conhecidas
 
 - Testes automatizados: não existem
 - WAN/relay: não implementado (só funciona em LAN)
-- Código duplicado entre `agent/` e `app/` (server.js, input.js, capture.js)
-- Versão não centralizada (cada package.json tem a própria)
 
 ## Padrões do projeto
 
