@@ -3,6 +3,13 @@ let connected = false;
 let currentAgent = null;
 let pendingAuthAgent = null;
 let pendingAuthLi = null;
+let chatWindowOpened = false;
+
+function ensureChatOpen() {
+  if (chatWindowOpened) return;
+  chatWindowOpened = true;
+  window.electronAPI.openChatWindow(currentAgent?.hostname);
+}
 
 const canvas = document.getElementById('screen-canvas');
 const ctx = canvas.getContext('2d');
@@ -124,6 +131,7 @@ window.electronAPI.onReconnectFailed(() => setDisconnected());
 
 function setDisconnected() {
   connected = false; currentAgent = null;
+  chatWindowOpened = false;
   canvas.style.cursor = '';
   clearCursor();
   overlay.classList.remove('hidden');
@@ -341,9 +349,13 @@ function sendChat() {
   chatInput.value = '';
   window.electronAPI.sendChat(text);
   appendChat('Eu', text, 'me');
+  ensureChatOpen();
 }
 
-window.electronAPI.onChat(text => appendChat('Agente', text, 'them'));
+window.electronAPI.onChat(text => {
+  appendChat('Agente', text, 'them');
+  ensureChatOpen();
+});
 
 function appendChat(from, text, cls) {
   const div = document.createElement('div');

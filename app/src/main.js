@@ -15,11 +15,13 @@ const { createLogger } = require('../../shared/logger');
 const log = createLogger('app-main');
 
 // ── Windows ───────────────────────────────────────────────────────────────────
-let launcherWin = null;
-let agentUIWin  = null;
-let captureWin  = null;
-let viewerWin   = null;
-let tray        = null;
+let launcherWin  = null;
+let agentUIWin   = null;
+let captureWin   = null;
+let viewerWin    = null;
+let chatWin      = null;
+let agentChatWin = null;
+let tray         = null;
 
 // ── Agent state ───────────────────────────────────────────────────────────────
 let agentServer    = null;
@@ -67,6 +69,37 @@ function getLocalIPv4() {
 }
 
 function src(...parts) { return path.join(__dirname, ...parts); }
+
+// ── Chat pop-out ──────────────────────────────────────────────────────────────
+function createChatWindow(title = 'Chat') {
+  const win = new BrowserWindow({
+    width: 340, height: 500,
+    minWidth: 260, minHeight: 300,
+    title,
+    alwaysOnTop: true,
+    resizable: true,
+    minimizable: true,
+    maximizable: false,
+    webPreferences: { preload: src('preload-chat.js'), contextIsolation: true },
+  });
+  win.setMenuBarVisibility(false);
+  win.loadFile(src('chat-window.html'));
+  return win;
+}
+
+function closeChatWin() {
+  if (!chatWin) return;
+  const w = chatWin; chatWin = null;
+  try { w.webContents.send('chat-closed'); } catch {}
+  setTimeout(() => { try { w.destroy(); } catch {} }, 1200);
+}
+
+function closeAgentChatWin() {
+  if (!agentChatWin) return;
+  const w = agentChatWin; agentChatWin = null;
+  try { w.webContents.send('chat-closed'); } catch {}
+  setTimeout(() => { try { w.destroy(); } catch {} }, 1200);
+}
 
 // ── Launcher ──────────────────────────────────────────────────────────────────
 function openLauncher() {
@@ -171,8 +204,20 @@ function startAgentMode() {
     if (m?.width) Input.setScreenBounds(m.width, m.height);
   });
 
-  agentServer.on('input',     msg  => Input.handleInput(msg));
-  agentServer.on('chat',      text => agentServer.broadcastChat(text));
+  agentServer.on('input', msg => Input.handleInput(msg));
+
+  agentServer.on('chat', text => {
+    agentServer.broadcastChat(text);
+    if (!agentChatWin || agentChatWin.isDestroyed()) {
+      agentChatWin = createChatWindow('Chat — Viewer');
+      agentChatWin.on('closed', () => { agentChatWin = null; });
+      agentChatWin.webContents.once('did-finish-load', () =>
+        agentChatWin?.webContents.send('chat-message', { from: 'Viewer', text }));
+    } else {
+      agentChatWin.focus();
+      agentChatWin.webContents.send('chat-message', { from: 'Viewer', text });
+    }
+  });
 
   agentServer.on('clipboard', text => {
     agentLastClip = text;
@@ -212,6 +257,7 @@ function stopAgentMode() {
   agentDiscovery?.stop(); agentDiscovery = null;
   captureWin?.destroy();  captureWin = null;
   agentUIWin?.destroy();  agentUIWin = null;
+  closeAgentChatWin();
   agentLastClip = ''; agentPassword = ''; clipEnabled = false;
   destroyTray();
   log.info('Modo agent parado');
@@ -253,6 +299,7 @@ function stopViewerMode() {
   vWs?.close(); vWs = null;
   vDiscovery?.stop(); vDiscovery = null;
   viewerWin?.destroy(); viewerWin = null;
+  closeChatWin();
   vLastOpts = null; vReconnCount = 0;
 }
 
@@ -385,7 +432,9 @@ function vHandleMessage(plain) {
       case MSG.MONITOR_LIST:
         viewerWin?.webContents.send('monitor-list', msg.monitors); break;
       case MSG.CHAT:
-        viewerWin?.webContents.send('chat', msg.text); break;
+        viewerWin?.webContents.send('chat', msg.text);
+        chatWin?.webContents.send('chat-message', { from: 'Agente', text: msg.text });
+        break;
       case MSG.CLIPBOARD:
         if (msg.text) { clipboard.writeText(msg.text); viewerWin?.webContents.send('clipboard-synced'); }
         break;
@@ -504,8 +553,27 @@ app.whenReady().then(async () => {
   });
 
   // Viewer interaction
-  ipcMain.on('input',          (_, msg)  => vSend(msg));
-  ipcMain.on('chat',           (_, text) => vSend({ type: MSG.CHAT, text }));
+  ipcMain.on('input', (_, msg)  => vSend(msg));
+
+  ipcMain.on('chat', (_, text) => {
+    vSend({ type: MSG.CHAT, text });
+    chatWin?.webContents.send('chat-message', { from: 'Eu', text });
+  });
+
+  ipcMain.on('open-chat-window', (_, agentName) => {
+    if (chatWin && !chatWin.isDestroyed()) { chatWin.focus(); return; }
+    chatWin = createChatWindow(agentName ? `Chat — ${agentName}` : 'Chat');
+    chatWin.on('closed', () => { chatWin = null; });
+  });
+
+  ipcMain.on('chat-send', (event, text) => {
+    if (chatWin && !chatWin.isDestroyed() && event.sender === chatWin.webContents) {
+      vSend({ type: MSG.CHAT, text });
+    } else if (agentChatWin && !agentChatWin.isDestroyed() && event.sender === agentChatWin.webContents) {
+      agentServer?.broadcastChat(text);
+      agentChatWin.webContents.send('chat-message', { from: 'Eu', text });
+    }
+  });
   ipcMain.on('monitor-switch', (_, idx)  => vSend({ type: MSG.MONITOR_SWITCH, index: idx }));
   ipcMain.on('push-clipboard', () => {
     const t = clipboard.readText();

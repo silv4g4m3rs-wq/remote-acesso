@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
   onAgentFound:     cb => ipcRenderer.on('agent-found',     (_, a)    => cb(a)),
+  openChatWindow:   name => ipcRenderer.send('open-chat-window', name),
   connect:          opts => ipcRenderer.invoke('connect', opts),
   disconnect:       ()  => ipcRenderer.send('disconnect'),
   onDisconnected:   cb => ipcRenderer.on('disconnected',    cb),
