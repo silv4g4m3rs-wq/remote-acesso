@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Remote Acesso</title>
+  <link rel="stylesheet" href="viewer-style.css">
+</head>
+<body>
+  <div id="app">
+    <aside id="sidebar">
+      <div class="logo">
+        <span class="logo-icon">⬡</span>
+        <span class="logo-text">Remote Acesso</span>
+      </div>
+
+      <section class="panel">
+        <div class="panel-title">Agentes na rede</div>
+        <ul id="agent-list">
+          <li class="empty-hint">Buscando...</li>
+        </ul>
+      </section>
+
+      <section class="panel" id="monitor-panel" style="display:none">
+        <div class="panel-title">Monitor</div>
+        <select id="monitor-select"></select>
+      </section>
+
+      <section class="panel" id="tools-panel" style="display:none">
+        <div class="panel-title">Ferramentas</div>
+        <button class="btn" id="btn-clipboard">Enviar Clipboard</button>
+        <div id="clipboard-status" class="file-status"></div>
+      </section>
+
+      <section class="panel" id="file-panel" style="display:none">
+        <div class="panel-title">Arquivos</div>
+        <button class="btn" id="btn-send-file">Enviar arquivo</button>
+        <div id="file-status" class="file-status"></div>
+      </section>
+
+      <section class="panel" id="chat-panel" style="display:none">
+        <div class="panel-title">Chat</div>
+        <div id="chat-messages"></div>
+        <div class="chat-row">
+          <input id="chat-input" type="text" placeholder="Mensagem...">
+          <button class="btn-icon" id="btn-send-chat">›</button>
+        </div>
+      </section>
+
+      <div id="status-bar">
+        <span id="status-dot" class="dot dot-off"></span>
+        <span id="status-text">Desconectado</span>
+      </div>
+    </aside>
+
+    <main id="main">
+      <div id="screen-wrapper">
+        <canvas id="screen-canvas"></canvas>
+        <div id="overlay">
+          <p id="overlay-text">Selecione um agente para conectar</p>
+        </div>
+        <button id="btn-fullscreen" title="Tela inteira (F11)">⛶</button>
+      </div>
+    </main>
+  </div>
+  <div id="fullscreen-bar">Pressione <kbd>F11</kbd> ou <kbd>Esc</kbd> para sair da tela inteira</div>
+  </div>
+
+  <!-- Auth Modal -->
+  <div id="auth-modal" class="modal hidden">
+    <div class="modal-box">
+      <div class="modal-title">Autenticação</div>
+      <div class="modal-subtitle" id="auth-agent-name"></div>
+      <input type="password" id="auth-input" placeholder="Senha do agente" autocomplete="off" maxlength="32">
+      <div id="auth-error" class="modal-error hidden">Senha incorreta</div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="btn-auth-cancel">Cancelar</button>
+        <button class="btn" id="btn-auth-connect">Conectar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="viewer-app.js"></script>
+</body>
+</html>

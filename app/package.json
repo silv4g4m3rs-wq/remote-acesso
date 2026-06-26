@@ -1,0 +1,61 @@
+{
+  "name": "remote-acesso",
+  "version": "1.1.1",
+  "description": "Remote Acesso - Suporte remoto LAN",
+  "author": "Remote Acesso",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "publish": "electron-builder --publish always"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.remoteacesso.app",
+    "productName": "Remote Acesso",
+    "icon": "src/icon.ico",
+    "directories": {
+      "output": "dist"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "silv4g4m3rs-wq",
+      "repo": "remote-acesso"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Remote Acesso"
+    },
+    "files": [
+      "src/**/*",
+      "package.json",
+      "!src/node_modules"
+    ],
+    "extraResources": [
+      {
+        "from": "../shared",
+        "to": "shared"
+      }
+    ]
+  }
+}

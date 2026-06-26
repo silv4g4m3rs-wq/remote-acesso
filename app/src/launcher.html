@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Remote Acesso</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0b0b1a;
+      --surface: #13132a;
+      --card: #1a1a35;
+      --border: #252548;
+      --accent: #5c6ef8;
+      --accent-glow: rgba(92,110,248,0.25);
+      --green: #4ade80;
+      --green-card: #17382a;
+      --green-border: rgba(74,222,128,0.3);
+      --text: #d0d0e8;
+      --dim: #5a5a8a;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      user-select: none;
+      overflow: hidden;
+    }
+
+    body { -webkit-app-region: drag; }
+    button, a { -webkit-app-region: no-drag; }
+
+    .wrap {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 32px 28px 20px;
+      gap: 0;
+    }
+
+    /* ── Logo ── */
+    .logo-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+    .logo-hex {
+      width: 56px; height: 56px;
+      background: linear-gradient(135deg, #2a2a60, #1a1a40);
+      border: 1.5px solid rgba(92,110,248,0.4);
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px;
+      box-shadow: 0 0 24px var(--accent-glow);
+    }
+    .logo-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: 0.3px;
+    }
+    .logo-sub {
+      font-size: 11px;
+      color: var(--dim);
+      letter-spacing: 0.8px;
+    }
+
+    /* ── Mode cards ── */
+    .modes {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      flex: 1;
+    }
+
+    .mode-card {
+      width: 100%;
+      padding: 18px 20px;
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: border-color 0.2s, box-shadow 0.2s, transform 0.12s;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      text-align: left;
+      color: inherit;
+      font: inherit;
+      appearance: none;
+    }
+    .mode-card:hover {
+      border-color: var(--accent);
+      box-shadow: 0 0 20px var(--accent-glow);
+    }
+    .mode-card:active { transform: scale(0.98); }
+
+    .mode-card.green:hover {
+      border-color: var(--green);
+      box-shadow: 0 0 20px rgba(74,222,128,0.2);
+    }
+
+    .mode-icon {
+      width: 44px; height: 44px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+    .mode-icon.blue { background: rgba(92,110,248,0.15); border: 1px solid rgba(92,110,248,0.25); }
+    .mode-icon.green { background: rgba(74,222,128,0.12); border: 1px solid rgba(74,222,128,0.2); }
+
+    .mode-text {}
+    .mode-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 3px;
+    }
+    .mode-desc {
+      font-size: 11px;
+      color: var(--dim);
+      line-height: 1.4;
+    }
+
+    .mode-arrow {
+      margin-left: auto;
+      font-size: 18px;
+      color: var(--dim);
+      flex-shrink: 0;
+    }
+
+    /* ── Footer ── */
+    .footer {
+      width: 100%;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+      margin-top: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .version { font-size: 11px; color: var(--dim); }
+    .update-badge {
+      margin-left: auto;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 20px;
+      display: none;
+      cursor: default;
+    }
+    .update-badge.checking  { display: block; background: rgba(92,110,248,0.15); color: var(--accent); border: 1px solid rgba(92,110,248,0.2); }
+    .update-badge.latest    { display: block; background: rgba(74,222,128,0.12); color: var(--green);  border: 1px solid rgba(74,222,128,0.2); }
+    .update-badge.downloading { display: block; background: rgba(251,191,36,0.12); color: #fbbf24; border: 1px solid rgba(251,191,36,0.2); }
+    .update-badge.ready     { display: block; background: rgba(251,191,36,0.15); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); cursor: pointer; }
+    .update-badge.error     { display: block; background: rgba(248,113,113,0.12); color: #f87171; border: 1px solid rgba(248,113,113,0.2); }
+    .update-progress        { font-size: 10px; color: var(--dim); display: none; }
+    .update-progress.visible { display: block; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+
+    <div class="logo-area">
+      <div class="logo-hex">⬡</div>
+      <div class="logo-title">Remote Acesso</div>
+      <div class="logo-sub">SUPORTE REMOTO LAN</div>
+    </div>
+
+    <div class="modes">
+      <button class="mode-card" id="btn-viewer">
+        <div class="mode-icon blue">🖥️</div>
+        <div class="mode-text">
+          <div class="mode-title">Dar Suporte</div>
+          <div class="mode-desc">Controle o computador de outra pessoa remotamente</div>
+        </div>
+        <span class="mode-arrow">›</span>
+      </button>
+
+      <button class="mode-card green" id="btn-agent">
+        <div class="mode-icon green">📡</div>
+        <div class="mode-text">
+          <div class="mode-title">Receber Suporte</div>
+          <div class="mode-desc">Permita que alguém acesse e controle este computador</div>
+        </div>
+        <span class="mode-arrow">›</span>
+      </button>
+    </div>
+
+    <div class="footer">
+      <span class="version" id="version">v1.0.0</span>
+      <span class="update-progress" id="update-progress"></span>
+      <span class="update-badge" id="update-badge" title="Clique para instalar"></span>
+    </div>
+
+  </div>
+
+  <script>
+    document.getElementById('btn-viewer').addEventListener('click', () =>
+      window.launcherAPI.launchViewer());
+    document.getElementById('btn-agent').addEventListener('click', () =>
+      window.launcherAPI.launchAgent());
+
+    // Version
+    window.launcherAPI.getVersion().then(v => {
+      document.getElementById('version').textContent = 'v' + v;
+    }).catch(() => {});
+
+    // Update badge
+    const badge    = document.getElementById('update-badge');
+    const progress = document.getElementById('update-progress');
+
+    const labels = {
+      checking:    'Verificando...',
+      latest:      '✓ Atualizado',
+      downloading: 'Baixando update...',
+      ready:       '↑ Instalar update',
+      error:       'Erro no update',
+    };
+
+    window.launcherAPI.onUpdateStatus(status => {
+      badge.className = 'update-badge ' + status;
+      badge.textContent = labels[status] || status;
+      if (status !== 'downloading') progress.classList.remove('visible');
+    });
+
+    window.launcherAPI.onUpdateProgress(pct => {
+      progress.textContent = pct + '%';
+      progress.classList.add('visible');
+    });
+
+    badge.addEventListener('click', () => {
+      if (badge.classList.contains('ready')) window.launcherAPI.installUpdate();
+    });
+  </script>
+</body>
+</html>

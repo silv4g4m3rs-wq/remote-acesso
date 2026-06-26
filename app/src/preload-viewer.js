@@ -1,0 +1,25 @@
+const { contextBridge, ipcRenderer } = require('electron');
+
+contextBridge.exposeInMainWorld('electronAPI', {
+  onAgentFound:     cb => ipcRenderer.on('agent-found',     (_, a)    => cb(a)),
+  connect:          opts => ipcRenderer.invoke('connect', opts),
+  disconnect:       ()  => ipcRenderer.send('disconnect'),
+  onDisconnected:   cb => ipcRenderer.on('disconnected',    cb),
+  onReconnecting:   cb => ipcRenderer.on('reconnecting',    (_, a, m) => cb(a, m)),
+  onReconnected:    cb => ipcRenderer.on('reconnected',     cb),
+  onReconnectFailed:cb => ipcRenderer.on('reconnect-failed',cb),
+  onFrame:          cb => ipcRenderer.on('frame',           (_, jpeg, w, h) => cb(jpeg, w, h)),
+  onMonitorList:    cb => ipcRenderer.on('monitor-list',    (_, m)    => cb(m)),
+  switchMonitor:    idx => ipcRenderer.send('monitor-switch', idx),
+  sendInput:        msg => ipcRenderer.send('input', msg),
+  sendChat:         text => ipcRenderer.send('chat', text),
+  onChat:           cb => ipcRenderer.on('chat',            (_, t)    => cb(t)),
+  pushClipboard:    () => ipcRenderer.send('push-clipboard'),
+  onClipboardSynced:cb => ipcRenderer.on('clipboard-synced', cb),
+  sendFile:           () => ipcRenderer.invoke('send-file'),
+  onFileProgress:     cb => ipcRenderer.on('file-progress',    (_, p) => cb(p)),
+  onFileIncoming:     cb => ipcRenderer.on('file-incoming',    (_, i) => cb(i)),
+  onFileSaved:        cb => ipcRenderer.on('file-saved',       (_, p) => cb(p)),
+  toggleFullscreen:   () => ipcRenderer.send('toggle-fullscreen'),
+  onFullscreenChange: cb => ipcRenderer.on('fullscreen-change', (_, fs) => cb(fs)),
+});
