@@ -186,26 +186,26 @@ class AgentServer extends EventEmitter {
           });
           return;
         }
-        this._fileRecv = { name: msg.name, size, chunks: [], received: 0 };
+        ws._fileRecv = { name: msg.name, size, chunks: [], received: 0 };
         break;
       }
       case MSG.FILE_CHUNK:
-        if (this._fileRecv) {
+        if (ws._fileRecv) {
           const chunk = Buffer.from(msg.data, 'base64');
-          this._fileRecv.received += chunk.length;
-          if (this._fileRecv.received > MAX_FILE_SIZE) {
+          ws._fileRecv.received += chunk.length;
+          if (ws._fileRecv.received > MAX_FILE_SIZE) {
             log.warn('Transferencia abortada: limite excedido');
-            this._fileRecv = null;
+            ws._fileRecv = null;
             return;
           }
-          this._fileRecv.chunks.push(chunk);
+          ws._fileRecv.chunks.push(chunk);
         }
         break;
       case MSG.FILE_END:
-        if (this._fileRecv) {
-          const data = Buffer.concat(this._fileRecv.chunks);
-          this.emit('file-received', { name: this._fileRecv.name, data });
-          this._fileRecv = null;
+        if (ws._fileRecv) {
+          const data = Buffer.concat(ws._fileRecv.chunks);
+          this.emit('file-received', { name: ws._fileRecv.name, data });
+          ws._fileRecv = null;
         }
         break;
     }
@@ -218,9 +218,11 @@ class AgentServer extends EventEmitter {
     header.writeUInt32LE(width,  1);
     header.writeUInt32LE(height, 5);
     const plain = Buffer.concat([header, jpegBuf]);
-    for (const ws of this.clients)
-      if (ws.readyState === ws.OPEN && ws._encKey)
-        ws.send(encrypt(ws._encKey, plain));
+    for (const ws of this.clients) {
+      if (ws.readyState !== ws.OPEN || !ws._encKey) continue;
+      if (ws.bufferedAmount > 0) continue;
+      ws.send(encrypt(ws._encKey, plain));
+    }
   }
 
   setMonitorList(monitors)       { this.monitors = monitors; }

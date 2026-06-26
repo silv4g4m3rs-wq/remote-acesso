@@ -1,10 +1,10 @@
 ﻿// Runs in hidden Electron renderer — no require(), uses window.electronAPI from preload
 
 // Adaptive quality defaults (mirrors shared/protocol.js constants)
-const TARGET_FPS   = 15;
+const TARGET_FPS   = 30;
 const JPEG_QUALITY = 0.80;
 const MIN_FPS      = 5;
-const MAX_FPS      = 30;
+const MAX_FPS      = 60;
 const MIN_QUALITY  = 0.40;
 const MAX_QUALITY  = 0.90;
 

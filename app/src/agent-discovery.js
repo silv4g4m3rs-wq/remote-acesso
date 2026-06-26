@@ -1,6 +1,7 @@
-const dgram = require('dgram');
-const os    = require('os');
-const { DISCOVERY_PORT, ANNOUNCE_INTERVAL_MS, WS_PORT } = require('../../shared/protocol');
+const dgram  = require('dgram');
+const crypto = require('crypto');
+const os     = require('os');
+const { DISCOVERY_PORT, ANNOUNCE_INTERVAL_MS, WS_PORT, DISCOVERY_TOKEN } = require('../../shared/protocol');
 
 class AgentDiscovery {
   constructor() { this.socket = null; this.timer = null; }
@@ -31,13 +32,15 @@ class AgentDiscovery {
   }
 
   _announce() {
-    const payload = Buffer.from(JSON.stringify({
-      type: 'AGENT_ANNOUNCE',
+    const body = JSON.stringify({
+      type:     'AGENT_ANNOUNCE',
       hostname: os.hostname(),
-      ip: this._getLocalIPv4(),
-      port: WS_PORT,
-      version: '1.0.0',
-    }));
+      ip:       this._getLocalIPv4(),
+      port:     WS_PORT,
+      version:  '1.0.0',
+    });
+    const sig = crypto.createHmac('sha256', DISCOVERY_TOKEN).update(body).digest('hex');
+    const payload = Buffer.from(JSON.stringify({ b: body, s: sig }));
     this.socket?.send(payload, 0, payload.length, DISCOVERY_PORT, '255.255.255.255');
   }
 

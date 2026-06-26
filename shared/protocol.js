@@ -16,17 +16,17 @@
   CLIPBOARD:      'clipboard',
 };
 
-const PROTOCOL_VERSION    = 2;
+const PROTOCOL_VERSION    = 3;
 
 const DISCOVERY_PORT       = 5454;
 const WS_PORT              = 8765;
 const ANNOUNCE_INTERVAL_MS = 2000;
 
 // Capture defaults and adaptive quality bounds
-const TARGET_FPS   = 15;
+const TARGET_FPS   = 30;
 const JPEG_QUALITY = 0.80;
 const MIN_FPS      = 5;
-const MAX_FPS      = 30;
+const MAX_FPS      = 60;
 const MIN_QUALITY  = 0.40;
 const MAX_QUALITY  = 0.90;
 
@@ -39,6 +39,9 @@ const AUTH_TIMEOUT_MS      = 10000;
 const MAX_AUTH_ATTEMPTS    = 10;
 const RATE_LIMIT_WINDOW_MS = 30000;
 
+// Discovery — HMAC-SHA256 shared token para autenticar pacotes UDP
+const DISCOVERY_TOKEN = 'RA-LAN-7f4a2c9e-b831-4d0a';
+
 // Discovery
 const MAX_AGENTS = 50;
 
@@ -48,5 +51,5 @@ module.exports = {
   TARGET_FPS, JPEG_QUALITY, MIN_FPS, MAX_FPS, MIN_QUALITY, MAX_QUALITY,
   FILE_CHUNK_SIZE, MAX_FILE_SIZE,
   AUTH_TIMEOUT_MS, MAX_AUTH_ATTEMPTS, RATE_LIMIT_WINDOW_MS,
-  MAX_AGENTS,
+  DISCOVERY_TOKEN, MAX_AGENTS,
 };

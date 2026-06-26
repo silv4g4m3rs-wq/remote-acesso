@@ -103,6 +103,7 @@ async function submitAuth() {
   toolsPanel.style.display = '';
   filePanel.style.display  = '';
   chatPanel.style.display  = '';
+  canvas.style.cursor = 'none';
   setStatus(`${agent.hostname} (${agent.host})`, true);
 }
 
@@ -123,6 +124,8 @@ window.electronAPI.onReconnectFailed(() => setDisconnected());
 
 function setDisconnected() {
   connected = false; currentAgent = null;
+  canvas.style.cursor = '';
+  clearCursor();
   overlay.classList.remove('hidden');
   overlayText.textContent = 'Selecione um agente para conectar';
   monitorPanel.style.display = 'none';
@@ -138,20 +141,77 @@ function setStatus(text, online) {
   statusDot.className = 'dot ' + (online ? 'dot-on' : 'dot-off');
 }
 
-// ── Screen frames ──────────────────────────────────────────────────────────────
-let renderPending = false;
+// ── Cursor overlay ────────────────────────────────────────────────────────────
+const cursorCanvas = document.createElement('canvas');
+cursorCanvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;';
+canvas.parentElement.insertBefore(cursorCanvas, canvas.nextSibling);
+const cursorCtx = cursorCanvas.getContext('2d');
+let cursorX = 0, cursorY = 0;
+
+function syncCursorCanvas() {
+  if (cursorCanvas.width !== canvas.width)   cursorCanvas.width  = canvas.width;
+  if (cursorCanvas.height !== canvas.height) cursorCanvas.height = canvas.height;
+}
+
+function drawCursor() {
+  syncCursorCanvas();
+  cursorCtx.clearRect(0, 0, cursorCanvas.width, cursorCanvas.height);
+  const x = cursorX, y = cursorY;
+  cursorCtx.save();
+  cursorCtx.strokeStyle = '#000';
+  cursorCtx.lineWidth = 2.5;
+  cursorCtx.beginPath();
+  cursorCtx.moveTo(x - 9, y); cursorCtx.lineTo(x + 9, y);
+  cursorCtx.moveTo(x, y - 9); cursorCtx.lineTo(x, y + 9);
+  cursorCtx.stroke();
+  cursorCtx.strokeStyle = '#fff';
+  cursorCtx.lineWidth = 1;
+  cursorCtx.beginPath();
+  cursorCtx.moveTo(x - 9, y); cursorCtx.lineTo(x + 9, y);
+  cursorCtx.moveTo(x, y - 9); cursorCtx.lineTo(x, y + 9);
+  cursorCtx.stroke();
+  cursorCtx.restore();
+}
+
+function clearCursor() {
+  cursorCtx.clearRect(0, 0, cursorCanvas.width, cursorCanvas.height);
+}
+
+// ── Screen frames — RAF pipeline ──────────────────────────────────────────────
+let pendingBitmap  = null;
+let rafScheduled   = false;
+let pendingWidth   = 0;
+let pendingHeight  = 0;
+
+function scheduleRaf() {
+  if (rafScheduled) return;
+  rafScheduled = true;
+  requestAnimationFrame(renderFrame);
+}
+
+function renderFrame() {
+  rafScheduled = false;
+  if (pendingBitmap) {
+    if (canvas.width  !== pendingWidth)  canvas.width  = pendingWidth;
+    if (canvas.height !== pendingHeight) canvas.height = pendingHeight;
+    ctx.drawImage(pendingBitmap, 0, 0);
+    pendingBitmap.close();
+    pendingBitmap  = null;
+  }
+  if (connected) drawCursor(); else clearCursor();
+}
 
 window.electronAPI.onFrame((jpeg, w, h) => {
   frameWidth = w; frameHeight = h;
-  if (canvas.width  !== w) canvas.width  = w;
-  if (canvas.height !== h) canvas.height = h;
-
-  if (renderPending) return;
-  renderPending = true;
-
+  pendingWidth  = w;
+  pendingHeight = h;
   createImageBitmap(new Blob([new Uint8Array(jpeg)], { type: 'image/jpeg' }))
-    .then(bitmap => { ctx.drawImage(bitmap, 0, 0); bitmap.close(); renderPending = false; })
-    .catch(() => { renderPending = false; });
+    .then(bitmap => {
+      if (pendingBitmap) { pendingBitmap.close(); }
+      pendingBitmap = bitmap;
+      scheduleRaf();
+    })
+    .catch(() => {});
 });
 
 // ── Monitor ───────────────────────────────────────────────────────────────────
@@ -185,9 +245,14 @@ window.electronAPI.onClipboardSynced(() => {
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 
 canvas.addEventListener('mousemove', e => {
+  const r = canvas.getBoundingClientRect();
+  cursorX = (e.clientX - r.left) * (canvas.width  / r.width);
+  cursorY = (e.clientY - r.top)  * (canvas.height / r.height);
   if (!connected) return;
-  const { nx, ny } = canvasNorm(e);
+  const nx = (e.clientX - r.left) / r.width;
+  const ny = (e.clientY - r.top)  / r.height;
   window.electronAPI.sendInput({ type: 'mouse_move', nx, ny });
+  scheduleRaf();
 });
 
 canvas.addEventListener('mousedown', e => {
@@ -201,6 +266,10 @@ canvas.addEventListener('mouseup', e => {
   if (!connected) return;
   const { nx, ny } = canvasNorm(e);
   window.electronAPI.sendInput({ type: 'mouse_click', nx, ny, button: e.button, down: false });
+});
+
+canvas.addEventListener('mouseleave', () => {
+  clearCursor();
 });
 
 canvas.addEventListener('wheel', e => {

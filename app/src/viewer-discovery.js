@@ -1,7 +1,8 @@
-﻿'use strict';
-const dgram = require('dgram');
+'use strict';
+const dgram  = require('dgram');
+const crypto = require('crypto');
 const { EventEmitter } = require('events');
-const { DISCOVERY_PORT, MAX_AGENTS } = require('../../shared/protocol');
+const { DISCOVERY_PORT, MAX_AGENTS, DISCOVERY_TOKEN } = require('../../shared/protocol');
 
 class ViewerDiscovery extends EventEmitter {
   constructor() {
@@ -15,14 +16,20 @@ class ViewerDiscovery extends EventEmitter {
     this.socket.on('error', err => console.error('[Discovery] Erro:', err.message));
 
     this.socket.on('message', (raw, rinfo) => {
+      let envelope;
+      try { envelope = JSON.parse(raw.toString()); } catch { return; }
+      if (typeof envelope.b !== 'string' || typeof envelope.s !== 'string') return;
+
+      const expected = crypto.createHmac('sha256', DISCOVERY_TOKEN).update(envelope.b).digest('hex');
+      if (!crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(envelope.s))) return;
+
       let msg;
-      try { msg = JSON.parse(raw.toString()); } catch { return; }
+      try { msg = JSON.parse(envelope.b); } catch { return; }
       if (msg.type !== 'AGENT_ANNOUNCE') return;
 
       const host = msg.ip || rinfo.address;
       const key  = `${host}:${msg.port}`;
 
-      // Enforce limit for existing entries (allow updating lastSeen)
       if (!this.agents.has(key) && this.agents.size >= MAX_AGENTS) return;
 
       const agent = {
@@ -42,7 +49,6 @@ class ViewerDiscovery extends EventEmitter {
       this.socket.setBroadcast(true);
     });
 
-    // Remove agents that stopped announcing (> 6s without signal)
     setInterval(() => {
       const now = Date.now();
       for (const [k, a] of this.agents)
