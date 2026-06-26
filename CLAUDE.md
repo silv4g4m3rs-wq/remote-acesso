@@ -14,7 +14,7 @@ REMOTEACESSO/
 └── setup-all.nsi
 ```
 
-## Versão atual: 1.1.1
+## Versão atual: 1.2.0
 
 ## Stack
 

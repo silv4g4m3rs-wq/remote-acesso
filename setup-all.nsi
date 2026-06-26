@@ -1,7 +1,7 @@
 Unicode True
 
 !define APP_NAME    "Remote Acesso"
-!define APP_VERSION "1.1.1"
+!define APP_VERSION "1.2.0"
 !define BASE_DIR    "$PROGRAMFILES64\Remote Acesso"
 !define UNINSTALLER "${BASE_DIR}\Uninstall.exe"
 !define REG_UNINST  "Software\Microsoft\Windows\CurrentVersion\Uninstall\Remote Acesso"

@@ -15,6 +15,6 @@ cd /d "%~dp0"
 echo.
 echo ============================================================
 echo  Pronto!
-echo  app\dist\Remote Acesso Setup 1.1.1.exe
+echo  app\dist\Remote Acesso Setup 1.2.0.exe
 echo ============================================================
 endlocal
