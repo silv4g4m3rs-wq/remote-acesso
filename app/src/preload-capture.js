@@ -5,5 +5,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   sendFrame:        (buf, w, h) => ipcRenderer.send('frame', buf, w, h),
   sendMonitorList:  monitors => ipcRenderer.send('monitor-list', monitors),
   onSwitchMonitor:  cb => ipcRenderer.on('switch-monitor', (_, idx) => cb(idx)),
+  onQualityChange:  cb => ipcRenderer.on('set-capture-quality', (_, q) => cb(q)),
   sendCaptureError: msg => ipcRenderer.send('capture-error', msg),
 });

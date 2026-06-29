@@ -5,6 +5,13 @@ using System.Runtime.InteropServices;
 public static class InputHelper {
     [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
     [DllImport("user32.dll")] public static extern uint MapVirtualKey(uint uCode, uint uMapType);
+    [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hwnd, out RECT lpRect);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct RECT { public int Left, Top, Right, Bottom; }
+
+    public static IntPtr LastForeground = IntPtr.Zero;
 
     [StructLayout(LayoutKind.Sequential)] public struct MOUSEINPUT {
         public int dx, dy;
@@ -60,6 +67,29 @@ public static class InputHelper {
     }
 }
 "@
+
+$focusThread = [System.Threading.Thread]::new([System.Threading.ThreadStart]{
+    while ($true) {
+        [System.Threading.Thread]::Sleep(300)
+        try {
+            $hwnd = [InputHelper]::GetForegroundWindow()
+            if ($hwnd -ne [IntPtr]::Zero -and $hwnd -ne [InputHelper]::LastForeground) {
+                [InputHelper]::LastForeground = $hwnd
+                $r = New-Object InputHelper+RECT
+                if ([InputHelper]::GetWindowRect($hwnd, [ref]$r)) {
+                    $w = [int]$r.Right - [int]$r.Left
+                    $h = [int]$r.Bottom - [int]$r.Top
+                    if ($w -gt 0 -and $h -gt 0) {
+                        [Console]::Out.WriteLine('{"type":"focus","x":' + [int]$r.Left + ',"y":' + [int]$r.Top + ',"w":' + $w + ',"h":' + $h + '}')
+                        [Console]::Out.Flush()
+                    }
+                }
+            }
+        } catch {}
+    }
+})
+$focusThread.IsBackground = $true
+$focusThread.Start()
 
 $reader = [Console]::In
 while ($true) {

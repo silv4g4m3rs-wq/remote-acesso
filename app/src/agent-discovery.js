@@ -31,6 +31,22 @@ class AgentDiscovery {
     );
   }
 
+  _getBroadcastAddresses() {
+    const VIRTUAL = /loopback|vethernet|vmware|virtualbox|docker|bluetooth|teredo|isatap|6to4/i;
+    const result = [];
+    for (const [name, addrs] of Object.entries(os.networkInterfaces())) {
+      if (VIRTUAL.test(name)) continue;
+      for (const a of addrs) {
+        if (a.family !== 'IPv4' || a.internal || a.address.startsWith('169.254.')) continue;
+        const ip   = a.address.split('.').map(Number);
+        const mask = a.netmask.split('.').map(Number);
+        const bcast = ip.map((b, i) => (b | (~mask[i] & 0xff))).join('.');
+        result.push(bcast);
+      }
+    }
+    return result.length ? result : ['255.255.255.255'];
+  }
+
   _announce() {
     const body = JSON.stringify({
       type:     'AGENT_ANNOUNCE',
@@ -41,7 +57,9 @@ class AgentDiscovery {
     });
     const sig = crypto.createHmac('sha256', DISCOVERY_TOKEN).update(body).digest('hex');
     const payload = Buffer.from(JSON.stringify({ b: body, s: sig }));
-    this.socket?.send(payload, 0, payload.length, DISCOVERY_PORT, '255.255.255.255');
+    for (const bcast of this._getBroadcastAddresses()) {
+      this.socket?.send(payload, 0, payload.length, DISCOVERY_PORT, bcast);
+    }
   }
 
   stop() {

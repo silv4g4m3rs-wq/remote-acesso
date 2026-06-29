@@ -59,6 +59,13 @@ using System.Runtime.InteropServices;
 public static class InputHelper {
     [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
     [DllImport("user32.dll")] public static extern uint MapVirtualKey(uint uCode, uint uMapType);
+    [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hwnd, out RECT lpRect);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct RECT { public int Left, Top, Right, Bottom; }
+
+    public static IntPtr LastForeground = IntPtr.Zero;
 
     [StructLayout(LayoutKind.Sequential)] public struct MOUSEINPUT {
         public int dx, dy;
@@ -115,6 +122,29 @@ public static class InputHelper {
 }
 "@
 
+$focusThread = [System.Threading.Thread]::new([System.Threading.ThreadStart]{
+    while ($true) {
+        [System.Threading.Thread]::Sleep(300)
+        try {
+            $hwnd = [InputHelper]::GetForegroundWindow()
+            if ($hwnd -ne [IntPtr]::Zero -and $hwnd -ne [InputHelper]::LastForeground) {
+                [InputHelper]::LastForeground = $hwnd
+                $r = New-Object InputHelper+RECT
+                if ([InputHelper]::GetWindowRect($hwnd, [ref]$r)) {
+                    $w = [int]$r.Right - [int]$r.Left
+                    $h = [int]$r.Bottom - [int]$r.Top
+                    if ($w -gt 0 -and $h -gt 0) {
+                        [Console]::Out.WriteLine('{"type":"focus","x":' + [int]$r.Left + ',"y":' + [int]$r.Top + ',"w":' + $w + ',"h":' + $h + '}')
+                        [Console]::Out.Flush()
+                    }
+                }
+            }
+        } catch {}
+    }
+})
+$focusThread.IsBackground = $true
+$focusThread.Start()
+
 $reader = [Console]::In
 while ($true) {
     $line = $reader.ReadLine()
@@ -150,6 +180,8 @@ let scriptPath = null;
 let screenW   = 1920;
 let screenH   = 1080;
 let psKilled  = false;
+let _focusCallback = null;
+let _stdoutBuf     = '';
 
 function initScreen() {
   try {
@@ -191,6 +223,21 @@ function spawnPS() {
   log.info('Iniciando processo PowerShell', { script });
   const p = spawn('powershell.exe', ['-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script], {
     stdio: ['pipe', 'pipe', 'pipe'],
+  });
+
+  p.stdout.on('data', d => {
+    _stdoutBuf += d.toString();
+    let nl;
+    while ((nl = _stdoutBuf.indexOf('\n')) !== -1) {
+      const line = _stdoutBuf.slice(0, nl).trim();
+      _stdoutBuf = _stdoutBuf.slice(nl + 1);
+      if (!line) continue;
+      try {
+        const obj = JSON.parse(line);
+        if (obj.type === 'focus' && _focusCallback)
+          _focusCallback(obj.x, obj.y, obj.w, obj.h);
+      } catch {}
+    }
   });
 
   p.stderr.on('data', d => {
@@ -260,7 +307,16 @@ function handleInput(msg) {
 
 function shutdown() {
   psKilled = true;
-  if (proc) { try { proc.stdin.end(); proc.kill(); } catch {} }
+  _focusCallback = null;
+  if (proc) {
+    const p = proc;
+    proc = null;
+    try { p.stdin.end(); } catch {}
+    // Give the PS1 loop a moment to exit cleanly on EOF, then force-kill.
+    setTimeout(() => { try { p.kill('SIGKILL'); } catch {} }, 300);
+  }
 }
 
-module.exports = { handleInput, setScreenBounds, shutdown };
+function setFocusCallback(cb) { _focusCallback = cb; }
+
+module.exports = { handleInput, setScreenBounds, shutdown, setFocusCallback };

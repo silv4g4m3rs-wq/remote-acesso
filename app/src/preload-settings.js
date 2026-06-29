@@ -1,3 +1,4 @@
+'use strict';
 const { contextBridge, ipcRenderer } = require('electron');
 
 ;(function () {
@@ -15,12 +16,11 @@ const { contextBridge, ipcRenderer } = require('electron');
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => _apply(_t));
 }());
 
-contextBridge.exposeInMainWorld('launcherAPI', {
-  launchAgent:       () => ipcRenderer.send('launch-agent'),
-  launchViewer:      () => ipcRenderer.send('launch-viewer'),
-  installUpdate:     () => ipcRenderer.send('install-update'),
-  openSettings:      () => ipcRenderer.send('open-settings'),
-  getVersion:        () => ipcRenderer.invoke('get-version'),
-  onUpdateStatus:    cb => ipcRenderer.on('update-status',   (_, s) => cb(s)),
-  onUpdateProgress:  cb => ipcRenderer.on('update-progress', (_, p) => cb(p)),
+contextBridge.exposeInMainWorld('settingsAPI', {
+  load:          ()    => ipcRenderer.invoke('settings-load'),
+  save:          data  => ipcRenderer.invoke('settings-save', data),
+  browseFolder:  ()    => ipcRenderer.invoke('settings-browse-folder'),
+  getDefaults:   ()    => ipcRenderer.invoke('settings-get-defaults'),
+  loadDisplay:   ()    => ipcRenderer.invoke('settings-load-display'),
+  saveDisplay:   data  => ipcRenderer.invoke('settings-save-display', data),
 });

@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Configurações — Remote Acesso</title>
+  <link rel="stylesheet" href="theme.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #1a1a1a;
+      --surface:   #222222;
+      --surface2:  #2b2b2b;
+      --border:    #383838;
+      --accent:    #e53935;
+      --accent-h:  #ef5350;
+      --text:      #e0e0e0;
+      --dim:       #888888;
+      --muted:     #555555;
+      --warn-bg:   rgba(235,170,0,0.10);
+      --warn-bd:   rgba(235,170,0,0.28);
+      --warn-txt:  #e8b000;
+    }
+
+    html, body { height: 100%; background: var(--bg); color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; font-size: 13px; overflow: hidden; }
+
+    /* ── Layout ── */
+    .root { display: flex; flex-direction: column; height: 100%; }
+
+    /* ── Header ── */
+    .header { padding: 13px 20px 0; background: var(--surface); flex-shrink: 0; -webkit-app-region: drag; }
+    .header-title { font-size: 13px; font-weight: 700; color: #fff; padding-bottom: 10px; }
+
+    /* ── Tabs ── */
+    .tabs { display: flex; border-bottom: 1px solid var(--border); }
+    .tab {
+      padding: 7px 18px; font-size: 12px; font-weight: 600;
+      color: var(--dim); cursor: pointer; border: none; background: none;
+      border-bottom: 2px solid transparent; margin-bottom: -1px;
+      transition: color 0.15s, border-color 0.15s; letter-spacing: 0.2px;
+      -webkit-app-region: no-drag;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: #fff; border-bottom-color: var(--accent); }
+
+    /* ── Scrollable content ── */
+    .content { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 4px 20px 16px; }
+    .content::-webkit-scrollbar { width: 4px; }
+    .content::-webkit-scrollbar-track { background: transparent; }
+    .content::-webkit-scrollbar-thumb { background: #444; border-radius: 2px; }
+
+    /* Tab panes */
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* ── Section ── */
+    .section { margin-top: 18px; }
+    .section-title {
+      font-size: 10px; font-weight: 700; letter-spacing: 1.2px;
+      text-transform: uppercase; color: var(--accent);
+      padding-bottom: 7px; border-bottom: 1px solid var(--border); margin-bottom: 10px;
+    }
+
+    /* ── Select row ── */
+    .sel-row { display: flex; align-items: center; padding: 5px 0; gap: 12px; }
+    .sel-row label { width: 60px; flex-shrink: 0; font-size: 12px; color: var(--text); }
+    select {
+      flex: 1; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 5px; color: var(--text); font-family: inherit; font-size: 12px;
+      padding: 6px 10px; padding-right: 28px; cursor: pointer; outline: none; appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 10px center;
+    }
+    select:focus { border-color: var(--accent); }
+
+    /* ── Custom Checkbox ── */
+    .cb-item { display: flex; align-items: flex-start; gap: 10px; padding: 5px 0; cursor: pointer; }
+    .cb-item input[type="checkbox"] { display: none; }
+    .cb-box {
+      width: 16px; height: 16px; border: 1.5px solid var(--muted); border-radius: 3px;
+      flex-shrink: 0; margin-top: 1px; display: flex; align-items: center; justify-content: center;
+      background: var(--surface2); transition: background 0.12s, border-color 0.12s;
+    }
+    .cb-box::after {
+      content: ''; width: 9px; height: 5px;
+      border-left: 2px solid transparent; border-bottom: 2px solid transparent;
+      transform: rotate(-45deg) translate(0px, -1px); transition: border-color 0.12s;
+    }
+    .cb-item input:checked + .cb-box { background: var(--accent); border-color: var(--accent); }
+    .cb-item input:checked + .cb-box::after { border-color: #fff; }
+    .cb-label { font-size: 12px; color: var(--text); line-height: 1.45; user-select: none; }
+
+    /* ── Custom Radio ── */
+    .rb-item { display: flex; align-items: flex-start; gap: 8px; padding: 5px 0; cursor: pointer; }
+    .rb-item input[type="radio"] { display: none; }
+    .rb-box {
+      width: 16px; height: 16px; border: 1.5px solid var(--muted); border-radius: 50%;
+      flex-shrink: 0; margin-top: 1px; display: flex; align-items: center; justify-content: center;
+      background: var(--surface2); transition: border-color 0.12s;
+    }
+    .rb-box::after { content: ''; width: 8px; height: 8px; border-radius: 50%; background: transparent; transition: background 0.12s; }
+    .rb-item input:checked + .rb-box { border-color: var(--accent); }
+    .rb-item input:checked + .rb-box::after { background: var(--accent); }
+    .rb-label { font-size: 12px; color: var(--text); user-select: none; line-height: 1.4; }
+    .rb-desc  { font-size: 11px; color: var(--dim); margin-top: 2px; line-height: 1.4; }
+
+    /* Inline radio groups (horizontal) */
+    .radio-group { display: flex; gap: 20px; flex-wrap: wrap; padding: 2px 0 4px; }
+    .radio-group .rb-item { padding: 3px 0; }
+    .radio-group .rb-label { line-height: 1; }
+
+    /* ── Indented sub-block ── */
+    .indent { padding-left: 24px; }
+
+    /* ── Path row ── */
+    .path-row { display: flex; align-items: center; gap: 8px; margin-top: 7px; }
+    .path-display {
+      flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: 5px;
+      padding: 5px 10px; font-size: 11px; color: var(--dim);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+    }
+    .btn-choose {
+      background: var(--surface2); border: 1px solid var(--border); border-radius: 5px;
+      color: var(--text); font-family: inherit; font-size: 11px; padding: 5px 14px;
+      cursor: pointer; white-space: nowrap; transition: border-color 0.12s; flex-shrink: 0;
+    }
+    .btn-choose:hover:not(:disabled) { border-color: #666; }
+    .btn-choose:disabled { opacity: 0.35; cursor: default; }
+
+    /* ── Sub-divider ── */
+    .sub-divider { height: 1px; background: var(--border); margin: 10px 0; }
+
+    /* ── Notice ── */
+    .notice {
+      font-size: 11px; color: var(--warn-txt); background: var(--warn-bg);
+      border: 1px solid var(--warn-bd); border-radius: 4px;
+      padding: 5px 9px; margin-bottom: 8px;
+    }
+
+    /* ── Privacy block ── */
+    .privacy-sub { font-size: 11px; font-weight: 600; color: #ccc; margin-bottom: 6px; margin-top: 8px; }
+    .privacy-text {
+      font-size: 11px; color: var(--dim); line-height: 1.55;
+      padding: 8px 0; border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border); margin-bottom: 8px;
+    }
+
+    /* ── Footer ── */
+    .footer {
+      flex-shrink: 0; padding: 10px 20px; border-top: 1px solid var(--border);
+      background: var(--surface); display: flex; justify-content: flex-end; gap: 8px;
+    }
+    .btn { padding: 7px 22px; border-radius: 5px; font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .btn-cancel { background: transparent; color: var(--dim); border: 1px solid var(--border); }
+    .btn-cancel:hover { border-color: #555; color: var(--text); }
+    .btn-save { background: var(--accent); color: #fff; border: none; }
+    .btn-save:hover  { background: var(--accent-h); }
+    .btn-save:active { background: #c62828; }
+  </style>
+</head>
+<body>
+  <div class="root">
+
+    <div class="header">
+      <div class="header-title">Configurações</div>
+      <div class="tabs">
+        <button class="tab active" data-pane="pane-geral">Geral</button>
+        <button class="tab"        data-pane="pane-display">Exibição</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ═══════════════════  TAB: GERAL  ═══════════════════ -->
+      <div class="tab-pane active" id="pane-geral">
+
+        <!-- 1. Idioma e Tema -->
+        <div class="section">
+          <div class="section-title">Idioma e Tema</div>
+          <div class="sel-row">
+            <label for="sel-language">Idioma</label>
+            <select id="sel-language">
+              <option value="auto">Seleção automática</option>
+              <option value="pt">Português</option>
+              <option value="en">English</option>
+            </select>
+          </div>
+          <div class="sel-row">
+            <label for="sel-theme">Tema</label>
+            <select id="sel-theme">
+              <option value="system">Usar as configurações padrão</option>
+              <option value="dark">Escuro</option>
+              <option value="light">Claro</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 2. Outros -->
+        <div class="section">
+          <div class="section-title">Outros</div>
+          <label class="cb-item"><input type="checkbox" id="cb-hide-taskbar"><div class="cb-box"></div>
+            <span class="cb-label">Ocultar barra de tarefas local quando o Remote Acesso estiver maximizado</span></label>
+          <label class="cb-item"><input type="checkbox" id="cb-ask-feedback"><div class="cb-box"></div>
+            <span class="cb-label">Pedir comentários ao final da sessão</span></label>
+          <label class="cb-item"><input type="checkbox" id="cb-auto-open-chat"><div class="cb-box"></div>
+            <span class="cb-label">Ao receber uma mensagem no chat, abrir a janela da sessão automaticamente</span></label>
+          <label class="cb-item"><input type="checkbox" id="cb-session-popup"><div class="cb-box"></div>
+            <span class="cb-label">Mostrar notificações pop-up para convites de sessão recebidos</span></label>
+          <label class="cb-item"><input type="checkbox" id="cb-sound"><div class="cb-box"></div>
+            <span class="cb-label">Som na solicitação de conexão recebida</span></label>
+          <label class="cb-item"><input type="checkbox" id="cb-hotkeys"><div class="cb-box"></div>
+            <span class="cb-label">Transmitir teclas de atalho (Win, Alt+Tab) para o computador remoto enquanto em sessão</span></label>
+        </div>
+
+        <!-- 3. Capturas de tela -->
+        <div class="section">
+          <div class="section-title">Diretório para Capturas de Tela</div>
+          <div class="radio-group">
+            <label class="rb-item"><input type="radio" name="screenshot-dir" value="default" id="rb-ss-default"><div class="rb-box"></div><span class="rb-label">Padrão</span></label>
+            <label class="rb-item"><input type="radio" name="screenshot-dir" value="custom"  id="rb-ss-custom"><div class="rb-box"></div><span class="rb-label">Personalizado</span></label>
+          </div>
+          <div class="path-row">
+            <div class="path-display" id="ss-path-display"></div>
+            <button class="btn-choose" id="btn-ss-choose" disabled>Escolher...</button>
+          </div>
+        </div>
+
+        <!-- 4. Histórico do chat -->
+        <div class="section">
+          <div class="section-title">Histórico do Chat</div>
+          <div class="radio-group">
+            <label class="rb-item"><input type="radio" name="chat-history" value="none"    id="rb-ch-none"><div class="rb-box"></div><span class="rb-label">Não salvar</span></label>
+            <label class="rb-item"><input type="radio" name="chat-history" value="default" id="rb-ch-default"><div class="rb-box"></div><span class="rb-label">Pasta padrão</span></label>
+            <label class="rb-item"><input type="radio" name="chat-history" value="custom"  id="rb-ch-custom"><div class="rb-box"></div><span class="rb-label">Pasta personalizada</span></label>
+          </div>
+          <div class="path-row">
+            <div class="path-display" id="ch-path-display"></div>
+            <button class="btn-choose" id="btn-ch-choose" disabled>Escolher...</button>
+          </div>
+        </div>
+
+        <!-- 5. Privacidade -->
+        <div class="section">
+          <div class="section-title">Visibilidade e Privacidade</div>
+          <label class="cb-item"><input type="checkbox" id="cb-online-status"><div class="cb-box"></div>
+            <span class="cb-label">Mostrar status online de clientes remotos</span></label>
+          <div class="privacy-sub">Ajude-nos a melhorar</div>
+          <div class="privacy-text">
+            Ao ativar esta opção, você permite que o Remote Acesso colete dados anônimos de uso,
+            como métricas de desempenho e relatórios de falhas, para nos ajudar a melhorar o produto.
+            Nenhuma informação pessoal ou conteúdo de sessão é coletado ou transmitido.
+          </div>
+          <label class="cb-item"><input type="checkbox" id="cb-usage-data"><div class="cb-box"></div>
+            <span class="cb-label">Permitir a coleta de dados de uso</span></label>
+        </div>
+
+      </div><!-- /pane-geral -->
+
+
+      <!-- ═══════════════════  TAB: EXIBIÇÃO  ═══════════════════ -->
+      <div class="tab-pane" id="pane-display">
+
+        <!-- 1. Qualidade -->
+        <div class="section">
+          <div class="section-title">Qualidade</div>
+          <label class="rb-item">
+            <input type="radio" name="quality" value="high" id="rb-q-high">
+            <div class="rb-box"></div>
+            <div><div class="rb-label">Melhor qualidade de imagem e vídeo</div>
+                 <div class="rb-desc">Compressão baixa — máxima fidelidade visual (maior uso de banda).</div></div>
+          </label>
+          <label class="rb-item">
+            <input type="radio" name="quality" value="balanced" id="rb-q-balanced">
+            <div class="rb-box"></div>
+            <div><div class="rb-label">Equilíbrio entre qualidade e tempo de reação</div>
+                 <div class="rb-desc">Compressão moderada — boa qualidade com resposta adequada.</div></div>
+          </label>
+          <label class="rb-item">
+            <input type="radio" name="quality" value="performance" id="rb-q-perf">
+            <div class="rb-box"></div>
+            <div><div class="rb-label">Menor tempo de reação</div>
+                 <div class="rb-desc">Alta compressão e FPS máximo — prioriza velocidade de resposta.</div></div>
+          </label>
+        </div>
+
+        <!-- 2. Auxílios Visuais -->
+        <div class="section">
+          <div class="section-title">Auxílios Visuais</div>
+          <label class="rb-item"><input type="radio" name="cursor-mode" value="off"  id="rb-c-off"><div class="rb-box"></div><span class="rb-label">Desativar cursor remoto</span></label>
+          <label class="rb-item"><input type="radio" name="cursor-mode" value="on"   id="rb-c-on"><div class="rb-box"></div><span class="rb-label">Mostrar cursor remoto</span></label>
+          <label class="rb-item"><input type="radio" name="cursor-mode" value="auto" id="rb-c-auto"><div class="rb-box"></div><span class="rb-label">Mostrar cursor remoto automaticamente</span></label>
+          <div class="indent" style="margin-top:4px;">
+            <label class="cb-item"><input type="checkbox" id="cb-follow-cursor"><div class="cb-box"></div><span class="cb-label">Seguir cursor remoto</span></label>
+            <label class="cb-item"><input type="checkbox" id="cb-follow-focus"><div class="cb-box"></div><span class="cb-label">Seguir o foco da janela remota</span></label>
+            <label class="cb-item"><input type="checkbox" id="cb-window-assistant"><div class="cb-box"></div><span class="cb-label">Exibir assistente de deslocamento de janelas</span></label>
+          </div>
+        </div>
+
+        <!-- 3. Modo de Visualização -->
+        <div class="section">
+          <div class="section-title">Modo de Visualização</div>
+          <label class="rb-item">
+            <input type="radio" name="view-mode" value="original" id="rb-v-original">
+            <div class="rb-box"></div>
+            <div><div class="rb-label">Tamanho original</div>
+                 <div class="rb-desc">Exibe em resolução real; barras de rolagem aparecem quando necessário.</div></div>
+          </label>
+          <label class="rb-item">
+            <input type="radio" name="view-mode" value="fit" id="rb-v-fit">
+            <div class="rb-box"></div>
+            <div><div class="rb-label">Otimizar visualização (encolher)</div>
+                 <div class="rb-desc">Reduz a imagem para caber na janela mantendo a proporção.</div></div>
+          </label>
+          <label class="rb-item">
+            <input type="radio" name="view-mode" value="stretch" id="rb-v-stretch">
+            <div class="rb-box"></div>
+            <div><div class="rb-label">Otimizar uso do monitor (esticar)</div>
+                 <div class="rb-desc">Preenche todo o espaço disponível, sem preservar proporção.</div></div>
+          </label>
+
+          <div class="sub-divider"></div>
+
+          <label class="cb-item"><input type="checkbox" id="cb-start-fullscreen"><div class="cb-box"></div>
+            <span class="cb-label">Iniciar novas sessões em modo tela cheia</span></label>
+          <label class="cb-item"><input type="checkbox" id="cb-edge-panning"><div class="cb-box"></div>
+            <span class="cb-label">No modo de tamanho original, mover imagem ao aproximar da borda</span></label>
+
+          <div class="indent" style="margin-top:4px;">
+            <label class="rb-item"><input type="radio" name="fullscreen-mode" value="exclusive" id="rb-fs-exclusive"><div class="rb-box"></div><span class="rb-label">Modo de tela cheia exclusivo</span></label>
+            <label class="rb-item"><input type="radio" name="fullscreen-mode" value="windowed"  id="rb-fs-windowed"><div class="rb-box"></div><span class="rb-label">Modo de tela cheia com janela</span></label>
+          </div>
+        </div>
+
+        <!-- 4. Aceleração por Hardware -->
+        <div class="section">
+          <div class="section-title">Aceleração por Hardware</div>
+          <div class="notice">⚠ Alterações nesta seção entram em vigor somente após reiniciar o aplicativo.</div>
+          <label class="rb-item"><input type="radio" name="hw-accel" value="opengl"    id="rb-hw-gl"><div class="rb-box"></div><span class="rb-label">OpenGL (experimental)</span></label>
+          <label class="rb-item"><input type="radio" name="hw-accel" value="d3d"       id="rb-hw-d3d"><div class="rb-box"></div><span class="rb-label">Direct3D (recomendado)</span></label>
+          <label class="rb-item"><input type="radio" name="hw-accel" value="directdraw" id="rb-hw-dd"><div class="rb-box"></div><span class="rb-label">DirectDraw</span></label>
+          <label class="rb-item"><input type="radio" name="hw-accel" value="none"      id="rb-hw-none"><div class="rb-box"></div><span class="rb-label">Desativar aceleração por hardware</span></label>
+          <label class="cb-item" style="margin-top:6px;">
+            <input type="checkbox" id="cb-16bit"><div class="cb-box"></div>
+            <span class="cb-label">Usar renderização rápida de 16 bits (diminui a qualidade da imagem)</span>
+          </label>
+        </div>
+
+        <!-- 5. Configurações Individuais -->
+        <div class="section">
+          <div class="section-title">Configurações Individuais</div>
+          <label class="rb-item"><input type="radio" name="per-device" value="global"    id="rb-pd-global"><div class="rb-box"></div><span class="rb-label">Utilizar configurações padrão</span></label>
+          <label class="rb-item">
+            <input type="radio" name="per-device" value="perDevice" id="rb-pd-device">
+            <div class="rb-box"></div>
+            <div><div class="rb-label">Salvar configurações individuais para cada dispositivo</div>
+                 <div class="rb-desc">As preferências de qualidade e visualização de cada sessão são salvas separadamente pelo ID do dispositivo.</div></div>
+          </label>
+        </div>
+
+      </div><!-- /pane-display -->
+
+    </div><!-- /content -->
+
+    <div class="footer">
+      <button class="btn btn-cancel" id="btn-cancel">Cancelar</button>
+      <button class="btn btn-save"   id="btn-save">Salvar</button>
+    </div>
+
+  </div><!-- /root -->
+
+  <script>
+    const api = window.settingsAPI;
+    let defaults     = {};
+    let ssCustomPath = '';
+    let chCustomPath = '';
+
+    // ── Tab switching ─────────────────────────────────────────────────────────
+    document.querySelectorAll('.tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.pane).classList.add('active');
+      });
+    });
+
+    // ── Helpers (Geral) ───────────────────────────────────────────────────────
+    function ssMode() { return document.querySelector('input[name="screenshot-dir"]:checked')?.value || 'default'; }
+    function chMode() { return document.querySelector('input[name="chat-history"]:checked')?.value  || 'default'; }
+
+    function refreshSsPath() {
+      const m = ssMode();
+      document.getElementById('ss-path-display').textContent =
+        (m === 'custom' && ssCustomPath) ? ssCustomPath : (defaults.screenshotPath || '');
+      document.getElementById('btn-ss-choose').disabled = (m !== 'custom');
+    }
+    function refreshChPath() {
+      const m = chMode(), el = document.getElementById('ch-path-display');
+      if (m === 'none')                        el.textContent = '— não salvar —';
+      else if (m === 'custom' && chCustomPath) el.textContent = chCustomPath;
+      else                                     el.textContent = defaults.chatHistoryPath || '';
+      document.getElementById('btn-ch-choose').disabled = (m !== 'custom');
+    }
+
+    document.querySelectorAll('input[name="screenshot-dir"]').forEach(r => r.addEventListener('change', refreshSsPath));
+    document.querySelectorAll('input[name="chat-history"]').forEach(r => r.addEventListener('change', refreshChPath));
+
+    document.getElementById('btn-ss-choose').addEventListener('click', async () => {
+      const p = await api.browseFolder(); if (p) { ssCustomPath = p; refreshSsPath(); }
+    });
+    document.getElementById('btn-ch-choose').addEventListener('click', async () => {
+      const p = await api.browseFolder(); if (p) { chCustomPath = p; refreshChPath(); }
+    });
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+    async function init() {
+      [defaults] = await Promise.all([api.getDefaults()]);
+      const [s, d] = await Promise.all([api.load(), api.loadDisplay()]);
+
+      // — Geral —
+      document.getElementById('sel-language').value        = s.language              ?? 'auto';
+      document.getElementById('sel-theme').value           = s.theme                 ?? 'system';
+      document.getElementById('cb-hide-taskbar').checked   = !!s.hideTaskbarMaximized;
+      document.getElementById('cb-ask-feedback').checked   = !!s.askFeedbackEndSession;
+      document.getElementById('cb-auto-open-chat').checked = !!s.autoOpenChatWindow;
+      document.getElementById('cb-session-popup').checked  = s.showSessionInvitePopup !== false;
+      document.getElementById('cb-sound').checked          = !!s.soundOnConnectionRequest;
+      document.getElementById('cb-hotkeys').checked        = s.transmitHotkeys       !== false;
+      document.getElementById('cb-online-status').checked  = s.showOnlineStatus      !== false;
+      document.getElementById('cb-usage-data').checked     = !!s.allowUsageData;
+
+      const ssVal = s.screenshotDir   || 'default';
+      const chVal = s.chatHistoryMode || 'default';
+      document.querySelector(`input[name="screenshot-dir"][value="${ssVal}"]`).checked = true;
+      document.querySelector(`input[name="chat-history"][value="${chVal}"]`).checked   = true;
+      ssCustomPath = s.screenshotCustomPath  || '';
+      chCustomPath = s.chatHistoryCustomPath || '';
+      refreshSsPath(); refreshChPath();
+
+      // — Exibição —
+      const quality   = d.quality          || 'balanced';
+      const cursor    = d.cursorMode        || 'auto';
+      const viewMode  = d.viewMode          || 'fit';
+      const fsMode    = d.fullscreenMode    || 'exclusive';
+      const hwAccel   = d.hardwareAccel     || 'd3d';
+      const perDevice = d.perDeviceSettings || 'global';
+
+      document.querySelector(`input[name="quality"][value="${quality}"]`).checked       = true;
+      document.querySelector(`input[name="cursor-mode"][value="${cursor}"]`).checked    = true;
+      document.querySelector(`input[name="view-mode"][value="${viewMode}"]`).checked    = true;
+      document.querySelector(`input[name="fullscreen-mode"][value="${fsMode}"]`).checked = true;
+      document.querySelector(`input[name="hw-accel"][value="${hwAccel}"]`).checked      = true;
+      document.querySelector(`input[name="per-device"][value="${perDevice}"]`).checked  = true;
+
+      document.getElementById('cb-follow-cursor').checked    = !!d.followCursor;
+      document.getElementById('cb-follow-focus').checked     = !!d.followWindowFocus;
+      document.getElementById('cb-window-assistant').checked = !!d.showWindowShiftAssistant;
+      document.getElementById('cb-start-fullscreen').checked = !!d.startFullscreen;
+      document.getElementById('cb-edge-panning').checked     = !!d.edgePanning;
+      document.getElementById('cb-16bit').checked            = !!d.use16bit;
+    }
+
+    // ── Save ──────────────────────────────────────────────────────────────────
+    document.getElementById('btn-cancel').addEventListener('click', () => window.close());
+
+    document.getElementById('btn-save').addEventListener('click', async () => {
+      await Promise.all([
+        api.save({
+          language:                document.getElementById('sel-language').value,
+          theme:                   document.getElementById('sel-theme').value,
+          hideTaskbarMaximized:    document.getElementById('cb-hide-taskbar').checked,
+          askFeedbackEndSession:   document.getElementById('cb-ask-feedback').checked,
+          autoOpenChatWindow:      document.getElementById('cb-auto-open-chat').checked,
+          showSessionInvitePopup:  document.getElementById('cb-session-popup').checked,
+          soundOnConnectionRequest:document.getElementById('cb-sound').checked,
+          transmitHotkeys:         document.getElementById('cb-hotkeys').checked,
+          screenshotDir:           ssMode(),
+          screenshotCustomPath:    ssCustomPath,
+          chatHistoryMode:         chMode(),
+          chatHistoryCustomPath:   chCustomPath,
+          showOnlineStatus:        document.getElementById('cb-online-status').checked,
+          allowUsageData:          document.getElementById('cb-usage-data').checked,
+        }),
+        api.saveDisplay({
+          quality:                  document.querySelector('input[name="quality"]:checked')?.value          || 'balanced',
+          cursorMode:               document.querySelector('input[name="cursor-mode"]:checked')?.value      || 'auto',
+          followCursor:             document.getElementById('cb-follow-cursor').checked,
+          followWindowFocus:        document.getElementById('cb-follow-focus').checked,
+          showWindowShiftAssistant: document.getElementById('cb-window-assistant').checked,
+          viewMode:                 document.querySelector('input[name="view-mode"]:checked')?.value        || 'fit',
+          startFullscreen:          document.getElementById('cb-start-fullscreen').checked,
+          edgePanning:              document.getElementById('cb-edge-panning').checked,
+          fullscreenMode:           document.querySelector('input[name="fullscreen-mode"]:checked')?.value  || 'exclusive',
+          hardwareAccel:            document.querySelector('input[name="hw-accel"]:checked')?.value         || 'd3d',
+          use16bit:                 document.getElementById('cb-16bit').checked,
+          perDeviceSettings:        document.querySelector('input[name="per-device"]:checked')?.value       || 'global',
+        }),
+      ]);
+      window.close();
+    });
+
+    init();
+  </script>
+</body>
+</html>

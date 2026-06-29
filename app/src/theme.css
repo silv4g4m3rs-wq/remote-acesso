@@ -1,0 +1,77 @@
+html[data-theme="light"] {
+  /* ── Backgrounds ── */
+  --bg:           #f0f0f8;
+  --surface:      #ffffff;
+  --surface2:     #eaeaf5;
+  --card:         #f5f5fc;
+  --panel-bg:     #f0f0f8;
+  --sidebar-bg:   #e8e8f5;
+  /* ── Borders ── */
+  --border:       #d0d0e8;
+  /* ── Text ── */
+  --text:         #1a1a2e;
+  --text-dim:     #6a6a9a;
+  --dim:          #6a6a9a;
+  --muted:        #b0b0cc;
+  /* ── Accent ── */
+  --accent:       #4c5ef0;
+  --accent-h:     #5c6ef8;
+  --accent-hover: #5c6ef8;
+  --accent-glow:  rgba(76, 94, 240, 0.15);
+  --accent-dim:   rgba(76, 94, 240, 0.10);
+  /* ── Status ── */
+  --green:        #16a34a;
+  --green-dim:    rgba(22, 163, 74, 0.10);
+  --green-card:   #f0fdf4;
+  --green-border: rgba(22, 163, 74, 0.28);
+  --red:          #dc2626;
+  --orange:       #d97706;
+  /* ── Warning (settings) ── */
+  --warn-bg:      rgba(180, 120, 0, 0.08);
+  --warn-bd:      rgba(180, 120, 0, 0.30);
+  --warn-txt:     #7a5500;
+  color-scheme:   light;
+}
+
+/* ── Hardcoded white text → dark ── */
+html[data-theme="light"] .logo-title,
+html[data-theme="light"] .mode-title,
+html[data-theme="light"] .header-title,
+html[data-theme="light"] .logo-text,
+html[data-theme="light"] .modal-title { color: var(--text); }
+html[data-theme="light"] .slot        { color: var(--text); }
+
+/* ── Launcher: logo icon + mode icon tints ── */
+html[data-theme="light"] .logo-hex {
+  background: linear-gradient(135deg, #c8cdf8, #a0aaf0);
+  border-color: rgba(76, 94, 240, 0.35);
+  box-shadow: 0 0 20px rgba(76, 94, 240, 0.12);
+}
+html[data-theme="light"] .mode-icon.blue  { background: rgba(76,94,240,0.10); border-color: rgba(76,94,240,0.20); }
+html[data-theme="light"] .mode-icon.green { background: rgba(22,163,74,0.08); border-color: rgba(22,163,74,0.18); }
+
+/* ── Agent UI: header gradient + access card ── */
+html[data-theme="light"] .header {
+  background: linear-gradient(135deg, #d8daf8 0%, #eeeef8 100%);
+  border-bottom-color: var(--border);
+}
+html[data-theme="light"] .header-icon { background: rgba(76,94,240,0.10); border-color: rgba(76,94,240,0.22); }
+html[data-theme="light"] .access-card { background: #fff8f0; border-color: rgba(217,119,6,0.45); }
+
+/* ── Viewer: active agent item ── */
+html[data-theme="light"] #agent-list li.agent-item.active { background: #e0e2fc; }
+
+/* ── Chat window: all hardcoded colors ── */
+html[data-theme="light"] body.chat-body { background: #f0f0f8; color: #1a1a2e; }
+html[data-theme="light"] #header { background: #e8e8f5; border-bottom-color: #d0d0e8; color: #6a6a9a; }
+html[data-theme="light"] .msg.me   { background: #c0caff; color: #1a1a2e; }
+html[data-theme="light"] .msg.them { background: #e8e8f5; color: #1a1a2e; }
+html[data-theme="light"] .msg .sender    { color: #8888aa; }
+html[data-theme="light"] .msg.me .sender { color: #4c5ef0; }
+html[data-theme="light"] .system-msg     { color: #9090b0; }
+html[data-theme="light"] #input-row      { background: #e8e8f5; border-top-color: #d0d0e8; }
+html[data-theme="light"] #chat-input     { background: #ffffff; border-color: #d0d0e8; color: #1a1a2e; }
+html[data-theme="light"] #chat-input:focus { border-color: #4c5ef0; }
+html[data-theme="light"] #btn-send       { background: #4c5ef0; }
+html[data-theme="light"] #btn-send:hover:not(:disabled) { background: #5c6ef8; }
+html[data-theme="light"] #messages::-webkit-scrollbar-thumb { background: #d0d0e8; }

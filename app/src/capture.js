@@ -1,4 +1,4 @@
-﻿// Runs in hidden Electron renderer — no require(), uses window.electronAPI from preload
+// Runs in hidden Electron renderer — no require(), uses window.electronAPI from preload
 
 // Adaptive quality defaults (mirrors shared/protocol.js constants)
 const TARGET_FPS   = 30;
@@ -17,24 +17,43 @@ let stream       = null;
 let imageCapture = null;
 let captureTimer = null;
 let busy         = false;
-let fps          = TARGET_FPS;
-let quality      = JPEG_QUALITY;
 let skipCount    = 0;
+
+// Mutable quality targets — updated by viewer quality preference
+let targetFps  = TARGET_FPS;
+let targetQual = JPEG_QUALITY;
+let minQual    = MIN_QUALITY;
+let maxQual    = MAX_QUALITY;
+
+// Current adaptive values
+let fps     = targetFps;
+let quality = targetQual;
 
 // Adaptive quality: adjust fps and quality based on encode backpressure
 setInterval(() => {
   const targetSkipRate = fps * 0.3; // allow 30% skip
   if (skipCount > targetSkipRate) {
-    quality = Math.max(MIN_QUALITY, quality - 0.08);
+    quality = Math.max(minQual, quality - 0.08);
     fps     = Math.max(MIN_FPS, fps - 2);
     restartTimer();
-  } else if (skipCount === 0 && (fps < TARGET_FPS || quality < JPEG_QUALITY)) {
-    quality = Math.min(JPEG_QUALITY, quality + 0.04);
-    fps     = Math.min(TARGET_FPS, fps + 1);
+  } else if (skipCount === 0 && (fps < targetFps || quality < targetQual)) {
+    quality = Math.min(targetQual, quality + 0.04);
+    fps     = Math.min(targetFps, fps + 1);
     restartTimer();
   }
   skipCount = 0;
 }, 3000);
+
+// Quality preset update from viewer settings
+window.electronAPI.onQualityChange(q => {
+  targetFps  = q.fps        ?? TARGET_FPS;
+  targetQual = q.quality    ?? JPEG_QUALITY;
+  minQual    = q.minQuality ?? MIN_QUALITY;
+  maxQual    = q.maxQuality ?? MAX_QUALITY;
+  fps        = targetFps;
+  quality    = targetQual;
+  restartTimer();
+});
 
 function restartTimer() {
   if (!captureTimer) return;

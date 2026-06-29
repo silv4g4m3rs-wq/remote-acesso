@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Remote Acesso</title>
+  <link rel="stylesheet" href="theme.css">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -10,24 +11,46 @@
       --border: #252545; --accent: #5c6ef8; --accent-dim: rgba(92,110,248,0.15);
       --text: #d0d0e8; --dim: #5a5a8a;
       --green: #4ade80; --green-dim: rgba(74,222,128,0.12);
+      --red: #f87171; --orange: #fb923c;
     }
     html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; user-select: none; overflow: hidden; }
-    .root { display: flex; flex-direction: column; height: 100%; }
-    .header { padding: 16px 18px 14px; background: linear-gradient(135deg, #16163a 0%, #0d0d1c 100%); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+    .root { display: flex; flex-direction: column; height: 100%; position: relative; }
+    .header { padding: 16px 18px 14px; background: linear-gradient(135deg, #16163a 0%, #0d0d1c 100%); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
     .header-icon { width: 32px; height: 32px; background: var(--accent-dim); border: 1px solid rgba(92,110,248,0.3); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; color: var(--accent); }
     .header-text { display: flex; flex-direction: column; gap: 1px; }
     .header-title { font-size: 13px; font-weight: 700; color: #fff; }
     .header-sub { font-size: 10px; color: var(--dim); letter-spacing: 0.3px; }
-    .body { flex: 1; padding: 18px 18px 14px; display: flex; flex-direction: column; gap: 16px; }
+    .body { flex: 1; padding: 16px 18px 12px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; }
     .section-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--dim); margin-bottom: 8px; }
-    .slots { display: flex; gap: 6px; margin-bottom: 10px; }
-    .slot { flex: 1; height: 48px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; color: #fff; transition: border-color 0.2s, box-shadow 0.2s; }
+
+    /* Mode toggle */
+    .mode-row { display: flex; gap: 6px; margin-bottom: 10px; }
+    .mode-btn { flex: 1; padding: 5px 0; background: var(--card); border: 1px solid var(--border); border-radius: 6px; color: var(--dim); font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+    .mode-btn.active { background: var(--accent-dim); border-color: rgba(92,110,248,0.6); color: var(--accent); }
+
+    /* Random mode */
+    .slots { display: flex; gap: 6px; margin-bottom: 8px; }
+    .slot { flex: 1; height: 44px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: #fff; }
     .slot.filled { border-color: rgba(92,110,248,0.5); box-shadow: 0 0 10px rgba(92,110,248,0.12); }
-    .btn-copy { width: 100%; padding: 8px; background: var(--accent); color: #fff; border: none; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; transition: background 0.15s, transform 0.1s; }
+    .btn-row { display: flex; gap: 6px; margin-bottom: 6px; }
+    .btn-copy { flex: 1; padding: 7px; background: var(--accent); color: #fff; border: none; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
     .btn-copy:hover { background: #7a89ff; }
-    .btn-copy:active { transform: scale(0.98); }
     .btn-copy.copied { background: #22c55e; }
-    .clip-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+    .btn-regen { padding: 7px 12px; background: var(--card); color: var(--dim); border: 1px solid var(--border); border-radius: 7px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+    .btn-regen:hover { color: var(--text); border-color: var(--accent); }
+
+    /* Fixed mode */
+    .fixed-section { display: none; flex-direction: column; gap: 6px; margin-bottom: 6px; }
+    .fixed-section.visible { display: flex; }
+    .pwd-input { width: 100%; background: var(--card); border: 1px solid var(--border); color: var(--text); border-radius: 7px; padding: 9px 12px; font-size: 15px; font-weight: 700; letter-spacing: 2px; }
+    .pwd-input:focus { outline: none; border-color: rgba(92,110,248,0.6); }
+    .btn-save { width: 100%; padding: 7px; background: var(--accent); color: #fff; border: none; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+    .btn-save:hover { background: #7a89ff; }
+    .btn-save.saved { background: #22c55e; }
+    .pwd-hint { font-size: 10px; color: var(--dim); }
+
+    /* Clipboard toggle */
+    .clip-row { display: flex; align-items: center; gap: 8px; }
     .clip-label { font-size: 11px; color: var(--dim); flex: 1; }
     .toggle { position: relative; width: 32px; height: 18px; flex-shrink: 0; }
     .toggle input { opacity: 0; width: 0; height: 0; }
@@ -35,19 +58,36 @@
     .toggle-slider::before { content:''; position: absolute; width: 12px; height: 12px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: transform 0.2s; }
     .toggle input:checked + .toggle-slider { background: var(--accent); }
     .toggle input:checked + .toggle-slider::before { transform: translateX(14px); }
+
+    /* Info grid */
     .info-grid { display: flex; flex-direction: column; gap: 6px; }
     .info-card { background: var(--card); border: 1px solid var(--border); border-radius: 7px; padding: 8px 12px; display: flex; align-items: center; gap: 10px; }
     .info-icon { font-size: 13px; width: 20px; text-align: center; flex-shrink: 0; }
     .info-content { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
     .info-key { font-size: 9px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--dim); }
     .info-val { font-size: 12px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .status-bar { margin-top: auto; padding: 10px 18px; background: var(--surface); border-top: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+
+    /* Status bar */
+    .status-bar { flex-shrink: 0; padding: 10px 18px; background: var(--surface); border-top: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
     .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--dim); flex-shrink: 0; transition: background 0.3s, box-shadow 0.3s; }
     .status-dot.on { background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 2s infinite; }
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
     .status-text { font-size: 11px; color: var(--dim); }
     .viewer-badge { margin-left: auto; background: var(--green-dim); border: 1px solid rgba(74,222,128,0.25); color: var(--green); font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; display: none; }
     .viewer-badge.visible { display: block; }
+
+    /* Access request card */
+    .access-card { position: absolute; left: 10px; right: 10px; bottom: 48px; background: #1e1a2e; border: 1px solid rgba(251,146,60,0.5); border-radius: 10px; padding: 12px 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); display: none; z-index: 50; }
+    .access-card.visible { display: block; animation: slideUp 0.2s ease; }
+    @keyframes slideUp { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform: translateY(0); } }
+    .access-title { font-size: 11px; font-weight: 700; color: var(--orange); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 4px; }
+    .access-ip { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 10px; }
+    .access-sub { font-size: 10px; color: var(--dim); margin-top: -6px; margin-bottom: 10px; }
+    .access-actions { display: flex; gap: 8px; }
+    .btn-deny { flex: 1; padding: 7px; background: rgba(248,113,113,0.15); border: 1px solid rgba(248,113,113,0.4); color: var(--red); border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.15s; }
+    .btn-deny:hover { background: rgba(248,113,113,0.3); }
+    .btn-allow { flex: 1; padding: 7px; background: rgba(74,222,128,0.15); border: 1px solid rgba(74,222,128,0.4); color: var(--green); border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.15s; }
+    .btn-allow:hover { background: rgba(74,222,128,0.3); }
   </style>
 </head>
 <body>
@@ -59,11 +99,34 @@
         <div class="header-sub">AGENT · ONLINE</div>
       </div>
     </div>
+
     <div class="body">
+      <!-- Password section -->
       <div class="password-section">
         <div class="section-label">Senha de acesso</div>
-        <div class="slots" id="slots"></div>
-        <button class="btn-copy" id="btn-copy">Copiar senha</button>
+
+        <!-- Mode toggle -->
+        <div class="mode-row">
+          <button class="mode-btn active" id="btn-mode-random">Aleatória</button>
+          <button class="mode-btn" id="btn-mode-fixed">Fixa</button>
+        </div>
+
+        <!-- Random mode -->
+        <div id="random-section">
+          <div class="slots" id="slots"></div>
+          <div class="btn-row">
+            <button class="btn-copy" id="btn-copy">Copiar senha</button>
+            <button class="btn-regen" id="btn-regen" title="Gerar nova senha">↺ Regen</button>
+          </div>
+        </div>
+
+        <!-- Fixed mode -->
+        <div class="fixed-section" id="fixed-section">
+          <input type="text" class="pwd-input" id="fixed-input" placeholder="Min. 4 caracteres" maxlength="20">
+          <div class="pwd-hint">Salve para ativar. Viewers precisarão digitar esta senha.</div>
+          <button class="btn-save" id="btn-save">Salvar senha fixa</button>
+        </div>
+
         <div class="clip-row">
           <span class="clip-label">Sincronizar área de transferência</span>
           <label class="toggle">
@@ -72,6 +135,8 @@
           </label>
         </div>
       </div>
+
+      <!-- Info grid -->
       <div class="info-grid">
         <div class="info-card">
           <span class="info-icon">🌐</span>
@@ -83,6 +148,18 @@
         </div>
       </div>
     </div>
+
+    <!-- Access request notification -->
+    <div class="access-card" id="access-card">
+      <div class="access-title">Solicitação de acesso</div>
+      <div class="access-ip" id="access-ip">—</div>
+      <div class="access-sub">Viewer solicitou conexão sem senha</div>
+      <div class="access-actions">
+        <button class="btn-deny" id="btn-deny">Recusar</button>
+        <button class="btn-allow" id="btn-allow">Aceitar</button>
+      </div>
+    </div>
+
     <div class="status-bar">
       <span class="status-dot" id="dot"></span>
       <span class="status-text" id="status-text">Aguardando conexão...</span>
@@ -98,9 +175,16 @@
     const statusEl   = document.getElementById('status-text');
     const badge      = document.getElementById('viewer-badge');
     const btnCopy    = document.getElementById('btn-copy');
+    const btnRegen   = document.getElementById('btn-regen');
+    const btnSave    = document.getElementById('btn-save');
+    const fixedInput = document.getElementById('fixed-input');
+    const accessCard = document.getElementById('access-card');
+    const accessIp   = document.getElementById('access-ip');
 
-    window.agentAPI.onInit(({ password, ip, hostname }) => {
-      window._agentPassword = password;
+    let currentMode    = 'random';
+    let pendingReqId   = null;
+
+    function fillSlots(password) {
       slotsEl.innerHTML = '';
       for (const ch of password) {
         const slot = document.createElement('div');
@@ -108,8 +192,24 @@
         slot.textContent = ch;
         slotsEl.appendChild(slot);
       }
-      ipEl.textContent = ip;
+    }
+
+    function setMode(mode) {
+      currentMode = mode;
+      document.getElementById('btn-mode-random').classList.toggle('active', mode === 'random');
+      document.getElementById('btn-mode-fixed').classList.toggle('active', mode === 'fixed');
+      document.getElementById('random-section').style.display = mode === 'random' ? '' : 'none';
+      document.getElementById('fixed-section').classList.toggle('visible', mode === 'fixed');
+    }
+
+    window.agentAPI.onInit(({ password, ip, hostname }) => {
+      fillSlots(password);
+      ipEl.textContent       = ip;
       hostnameEl.textContent = hostname;
+    });
+
+    window.agentAPI.onNewPassword(password => {
+      fillSlots(password);
     });
 
     window.agentAPI.onViewerCount(count => {
@@ -127,6 +227,17 @@
       statusEl.textContent = 'Erro de captura: ' + msg;
     });
 
+    window.agentAPI.onAccessRequest(({ id, ip }) => {
+      pendingReqId = id;
+      accessIp.textContent = ip;
+      accessCard.classList.add('visible');
+    });
+
+    // Mode buttons
+    document.getElementById('btn-mode-random').addEventListener('click', () => setMode('random'));
+    document.getElementById('btn-mode-fixed').addEventListener('click', () => setMode('fixed'));
+
+    // Copy
     btnCopy.addEventListener('click', () => {
       window.agentAPI.copyPassword();
       btnCopy.textContent = '✓ Copiado!';
@@ -134,8 +245,46 @@
       setTimeout(() => { btnCopy.textContent = 'Copiar senha'; btnCopy.classList.remove('copied'); }, 1800);
     });
 
+    // Regenerate
+    btnRegen.addEventListener('click', () => {
+      setMode('random');
+      window.agentAPI.regenPassword();
+    });
+
+    // Save fixed password
+    btnSave.addEventListener('click', () => {
+      const pwd = fixedInput.value.trim();
+      if (pwd.length < 4) {
+        fixedInput.style.borderColor = '#f87171';
+        setTimeout(() => { fixedInput.style.borderColor = ''; }, 1500);
+        return;
+      }
+      window.agentAPI.setPassword('fixed', pwd);
+      btnSave.textContent = '✓ Salvo!';
+      btnSave.classList.add('saved');
+      setTimeout(() => { btnSave.textContent = 'Salvar senha fixa'; btnSave.classList.remove('saved'); }, 1800);
+    });
+
+    // Clipboard toggle
     document.getElementById('chk-clip').addEventListener('change', e => {
       window.agentAPI.toggleClipboard(e.target.checked);
+    });
+
+    // Access request accept/reject
+    document.getElementById('btn-allow').addEventListener('click', () => {
+      if (pendingReqId !== null) {
+        window.agentAPI.acceptRequest(pendingReqId);
+        pendingReqId = null;
+        accessCard.classList.remove('visible');
+      }
+    });
+
+    document.getElementById('btn-deny').addEventListener('click', () => {
+      if (pendingReqId !== null) {
+        window.agentAPI.rejectRequest(pendingReqId);
+        pendingReqId = null;
+        accessCard.classList.remove('visible');
+      }
     });
   </script>
 </body>

@@ -5,6 +5,30 @@ let pendingAuthAgent = null;
 let pendingAuthLi = null;
 let chatWindowOpened = false;
 
+// ── Display settings ──────────────────────────────────────────────────────────
+let dSettings = {
+  quality: 'balanced', cursorMode: 'auto', followCursor: false,
+  viewMode: 'fit', startFullscreen: false, fullscreenMode: 'exclusive',
+  perDeviceSettings: 'global',
+};
+let mouseOverCanvas = false;
+
+function applyDisplaySettings(ds) {
+  dSettings = { ...dSettings, ...ds };
+  const wrapper = document.getElementById('screen-wrapper');
+  wrapper.classList.remove('view-original', 'view-fit', 'view-stretch');
+  wrapper.classList.add('view-' + (dSettings.viewMode || 'fit'));
+}
+
+window.electronAPI.getDisplaySettings().then(ds => {
+  if (ds) applyDisplaySettings(ds);
+}).catch(() => {});
+
+window.electronAPI.onDisplaySettings(ds => {
+  applyDisplaySettings(ds);
+  if (connected) window.electronAPI.setQuality(dSettings.quality || 'balanced');
+});
+
 function ensureChatOpen() {
   if (chatWindowOpened) return;
   chatWindowOpened = true;
@@ -73,6 +97,74 @@ document.getElementById('auth-input').addEventListener('keydown', e => {
 });
 
 document.getElementById('btn-auth-connect').addEventListener('click', submitAuth);
+document.getElementById('btn-auth-request').addEventListener('click', submitAccessRequest);
+
+async function submitAccessRequest() {
+  const agent = pendingAuthAgent;
+  const li    = pendingAuthLi;
+  if (!agent) return;
+
+  const btn = document.getElementById('btn-auth-request');
+  btn.disabled = true; btn.textContent = 'Aguardando...';
+
+  if (connected) { window.electronAPI.disconnect(); setDisconnected(); }
+  setStatus('Solicitando acesso...', false);
+
+  const result = await window.electronAPI.connect({ host: agent.host, port: agent.port, requestAccess: true });
+
+  btn.disabled = false; btn.textContent = 'Solicitar Acesso';
+
+  if (!result.ok && !result.pending) {
+    const err = document.getElementById('auth-error');
+    err.textContent = result.error || 'Erro de conexão';
+    err.classList.remove('hidden');
+    setStatus('Desconectado', false);
+    return;
+  }
+
+  currentAgent = agent;
+  li?.classList.add('active');
+  authModal.classList.add('hidden');
+  pendingAuthAgent = null; pendingAuthLi = null;
+
+  overlay.classList.remove('hidden');
+  overlayText.textContent = 'Aguardando aprovação do agente...';
+  setStatus('Aguardando aprovação...', false);
+}
+
+window.electronAPI.onAccessAccepted(() => {
+  connected = true;
+  overlay.classList.add('hidden');
+  toolsPanel.style.display = '';
+  filePanel.style.display  = '';
+  chatPanel.style.display  = '';
+  if (currentAgent)
+    setStatus(`${currentAgent.hostname} (${currentAgent.host})`, true);
+
+  (async () => {
+    let ds = dSettings;
+    if (dSettings.perDeviceSettings === 'perDevice' && currentAgent) {
+      const deviceDs = await window.electronAPI.getDeviceDisplaySettings(currentAgent.hostname).catch(() => null);
+      if (deviceDs) ds = { ...dSettings, ...deviceDs };
+    }
+    applyDisplaySettings(ds);
+    window.electronAPI.setQuality(ds.quality || 'balanced');
+    if (ds.startFullscreen && !document.body.classList.contains('fullscreen'))
+      window.electronAPI.toggleFullscreen(ds.fullscreenMode || 'exclusive');
+  })();
+});
+
+window.electronAPI.onAccessRejected(() => {
+  connected = false;
+  document.querySelectorAll('.agent-item').forEach(el => el.classList.remove('active'));
+  currentAgent = null;
+  overlay.classList.remove('hidden');
+  overlayText.textContent = 'Acesso recusado pelo agente.';
+  setStatus('Desconectado', false);
+  setTimeout(() => {
+    if (!connected) overlayText.textContent = 'Selecione um agente para conectar';
+  }, 3000);
+});
 
 async function submitAuth() {
   const password = document.getElementById('auth-input').value;
@@ -110,8 +202,20 @@ async function submitAuth() {
   toolsPanel.style.display = '';
   filePanel.style.display  = '';
   chatPanel.style.display  = '';
-  canvas.style.cursor = 'none';
   setStatus(`${agent.hostname} (${agent.host})`, true);
+
+  // Load per-device or global display settings, then apply quality to agent
+  (async () => {
+    let ds = dSettings;
+    if (dSettings.perDeviceSettings === 'perDevice') {
+      const deviceDs = await window.electronAPI.getDeviceDisplaySettings(agent.hostname).catch(() => null);
+      if (deviceDs) ds = { ...dSettings, ...deviceDs };
+    }
+    applyDisplaySettings(ds);
+    window.electronAPI.setQuality(ds.quality || 'balanced');
+    if (ds.startFullscreen && !document.body.classList.contains('fullscreen'))
+      window.electronAPI.toggleFullscreen(ds.fullscreenMode || 'exclusive');
+  })();
 }
 
 // ── Disconnect ────────────────────────────────────────────────────────────────
@@ -132,7 +236,6 @@ window.electronAPI.onReconnectFailed(() => setDisconnected());
 function setDisconnected() {
   connected = false; currentAgent = null;
   chatWindowOpened = false;
-  canvas.style.cursor = '';
   clearCursor();
   overlay.classList.remove('hidden');
   overlayText.textContent = 'Selecione um agente para conectar';
@@ -156,6 +259,9 @@ canvas.parentElement.insertBefore(cursorCanvas, canvas.nextSibling);
 const cursorCtx = cursorCanvas.getContext('2d');
 let cursorX = 0, cursorY = 0;
 
+canvas.addEventListener('mouseenter', () => { mouseOverCanvas = true; });
+canvas.addEventListener('mouseleave', () => { mouseOverCanvas = false; });
+
 function syncCursorCanvas() {
   if (cursorCanvas.width !== canvas.width)   cursorCanvas.width  = canvas.width;
   if (cursorCanvas.height !== canvas.height) cursorCanvas.height = canvas.height;
@@ -165,18 +271,23 @@ function drawCursor() {
   syncCursorCanvas();
   cursorCtx.clearRect(0, 0, cursorCanvas.width, cursorCanvas.height);
   const x = cursorX, y = cursorY;
+  // Scale so the arrow appears ~20px on screen regardless of remote resolution
+  const r = canvas.getBoundingClientRect();
+  const s = (r.width > 0 ? cursorCanvas.width / r.width : 1) * 20;
   cursorCtx.save();
-  cursorCtx.strokeStyle = '#000';
-  cursorCtx.lineWidth = 2.5;
   cursorCtx.beginPath();
-  cursorCtx.moveTo(x - 9, y); cursorCtx.lineTo(x + 9, y);
-  cursorCtx.moveTo(x, y - 9); cursorCtx.lineTo(x, y + 9);
-  cursorCtx.stroke();
-  cursorCtx.strokeStyle = '#fff';
-  cursorCtx.lineWidth = 1;
-  cursorCtx.beginPath();
-  cursorCtx.moveTo(x - 9, y); cursorCtx.lineTo(x + 9, y);
-  cursorCtx.moveTo(x, y - 9); cursorCtx.lineTo(x, y + 9);
+  cursorCtx.moveTo(x,              y);              // tip
+  cursorCtx.lineTo(x,              y + s * 0.85);   // bottom-left edge
+  cursorCtx.lineTo(x + s * 0.30,   y + s * 0.62);   // inner notch left
+  cursorCtx.lineTo(x + s * 0.50,   y + s * 1.00);   // tail bottom
+  cursorCtx.lineTo(x + s * 0.65,   y + s * 0.94);   // tail right
+  cursorCtx.lineTo(x + s * 0.45,   y + s * 0.58);   // inner notch right
+  cursorCtx.lineTo(x + s * 0.72,   y + s * 0.58);   // horizontal tip
+  cursorCtx.closePath();
+  cursorCtx.fillStyle   = '#d32f2f';
+  cursorCtx.fill();
+  cursorCtx.strokeStyle = '#ffffff';
+  cursorCtx.lineWidth   = Math.max(1, s * 0.07);
   cursorCtx.stroke();
   cursorCtx.restore();
 }
@@ -185,11 +296,65 @@ function clearCursor() {
   cursorCtx.clearRect(0, 0, cursorCanvas.width, cursorCanvas.height);
 }
 
+function scrollToArea(x, y, w, h) {
+  const wrapper = document.getElementById('screen-wrapper');
+  if (!wrapper.classList.contains('view-original')) return;
+  const vw = wrapper.clientWidth, vh = wrapper.clientHeight;
+  wrapper.scrollLeft = Math.max(0, x + w / 2 - vw / 2);
+  wrapper.scrollTop  = Math.max(0, y + h / 2 - vh / 2);
+}
+
+window.electronAPI.onWindowFocus(rect => {
+  if (!dSettings.followWindowFocus || !connected) return;
+  scrollToArea(rect.x, rect.y, rect.w, rect.h);
+});
+
+function followCursor() {
+  const wrapper = document.getElementById('screen-wrapper');
+  if (!wrapper.classList.contains('view-original')) return;
+  const vw = wrapper.clientWidth,  vh = wrapper.clientHeight;
+  const sl = wrapper.scrollLeft,   st = wrapper.scrollTop;
+  const margin = 60;
+  let newSl = sl, newSt = st;
+  if (cursorX < sl + margin)      newSl = cursorX - margin;
+  if (cursorX > sl + vw - margin) newSl = cursorX - vw + margin;
+  if (cursorY < st + margin)      newSt = cursorY - margin;
+  if (cursorY > st + vh - margin) newSt = cursorY - vh + margin;
+  if (newSl !== sl) wrapper.scrollLeft = Math.max(0, newSl);
+  if (newSt !== st) wrapper.scrollTop  = Math.max(0, newSt);
+}
+
+function applyEdgePan() {
+  if (!dSettings.edgePanning || panClientX < 0 || !connected) return;
+  const wrapper = document.getElementById('screen-wrapper');
+  if (!wrapper.classList.contains('view-original')) return;
+  const wr = wrapper.getBoundingClientRect();
+  const mx = panClientX - wr.left;
+  const my = panClientY - wr.top;
+  const vw = wr.width, vh = wr.height;
+  const ZONE = 60, MAX_SPEED = 15;
+  let dx = 0, dy = 0;
+  if (mx < ZONE)       dx = -(1 - mx / ZONE)        * MAX_SPEED;
+  if (mx > vw - ZONE)  dx =  (1 - (vw - mx) / ZONE) * MAX_SPEED;
+  if (my < ZONE)       dy = -(1 - my / ZONE)        * MAX_SPEED;
+  if (my > vh - ZONE)  dy =  (1 - (vh - my) / ZONE) * MAX_SPEED;
+  if (dx !== 0) wrapper.scrollLeft = Math.max(0, wrapper.scrollLeft + dx);
+  if (dy !== 0) wrapper.scrollTop  = Math.max(0, wrapper.scrollTop  + dy);
+  if (dx !== 0 || dy !== 0) scheduleRaf();
+}
+
 // ── Screen frames — RAF pipeline ──────────────────────────────────────────────
 let pendingBitmap  = null;
 let rafScheduled   = false;
 let pendingWidth   = 0;
 let pendingHeight  = 0;
+
+// Mouse move is flushed through RAF to cap sends at display refresh rate (~60fps)
+let pendingMouseMove = false;
+let pendingMx = 0, pendingMy = 0;
+
+// Edge panning — raw client coords of cursor (-1 when outside canvas)
+let panClientX = -1, panClientY = -1;
 
 function scheduleRaf() {
   if (rafScheduled) return;
@@ -199,6 +364,10 @@ function scheduleRaf() {
 
 function renderFrame() {
   rafScheduled = false;
+  if (pendingMouseMove && connected) {
+    window.electronAPI.sendInput({ type: 'mouse_move', nx: pendingMx, ny: pendingMy });
+    pendingMouseMove = false;
+  }
   if (pendingBitmap) {
     if (canvas.width  !== pendingWidth)  canvas.width  = pendingWidth;
     if (canvas.height !== pendingHeight) canvas.height = pendingHeight;
@@ -206,7 +375,10 @@ function renderFrame() {
     pendingBitmap.close();
     pendingBitmap  = null;
   }
-  if (connected) drawCursor(); else clearCursor();
+  const showCursor = dSettings.cursorMode === 'on' ||
+    (dSettings.cursorMode === 'auto' && mouseOverCanvas && connected);
+  if (showCursor) drawCursor(); else clearCursor();
+  applyEdgePan();
 }
 
 window.electronAPI.onFrame((jpeg, w, h) => {
@@ -256,10 +428,13 @@ canvas.addEventListener('mousemove', e => {
   const r = canvas.getBoundingClientRect();
   cursorX = (e.clientX - r.left) * (canvas.width  / r.width);
   cursorY = (e.clientY - r.top)  * (canvas.height / r.height);
+  panClientX = e.clientX;
+  panClientY = e.clientY;
   if (!connected) return;
-  const nx = (e.clientX - r.left) / r.width;
-  const ny = (e.clientY - r.top)  / r.height;
-  window.electronAPI.sendInput({ type: 'mouse_move', nx, ny });
+  if (dSettings.followCursor) followCursor();
+  pendingMx = (e.clientX - r.left) / r.width;
+  pendingMy = (e.clientY - r.top)  / r.height;
+  pendingMouseMove = true;
   scheduleRaf();
 });
 
@@ -277,6 +452,7 @@ canvas.addEventListener('mouseup', e => {
 });
 
 canvas.addEventListener('mouseleave', () => {
+  panClientX = -1; panClientY = -1;
   clearCursor();
 });
 
@@ -295,7 +471,7 @@ function canvasNorm(e) {
 const btnFullscreen = document.getElementById('btn-fullscreen');
 
 function toggleFullscreen() {
-  window.electronAPI.toggleFullscreen();
+  window.electronAPI.toggleFullscreen(dSettings.fullscreenMode || 'exclusive');
 }
 
 window.electronAPI.onFullscreenChange(fs => {
@@ -348,12 +524,10 @@ function sendChat() {
   if (!text || !connected) return;
   chatInput.value = '';
   window.electronAPI.sendChat(text);
-  appendChat('Eu', text, 'me');
   ensureChatOpen();
 }
 
-window.electronAPI.onChat(text => {
-  appendChat('Agente', text, 'them');
+window.electronAPI.onChat(() => {
   ensureChatOpen();
 });
 

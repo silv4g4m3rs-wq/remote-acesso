@@ -1,19 +1,24 @@
 ﻿const MSG = {
-  FRAME:          'frame',
-  MONITOR_LIST:   'monitor_list',
-  MONITOR_SWITCH: 'monitor_switch',
-  MOUSE_MOVE:     'mouse_move',
-  MOUSE_CLICK:    'mouse_click',
-  MOUSE_SCROLL:   'mouse_scroll',
-  KEY:            'key',
-  CHAT:           'chat',
-  FILE_START:     'file_start',
-  FILE_CHUNK:     'file_chunk',
-  FILE_END:       'file_end',
-  AUTH:           'auth',
-  AUTH_OK:        'auth_ok',
-  AUTH_FAIL:      'auth_fail',
-  CLIPBOARD:      'clipboard',
+  FRAME:           'frame',
+  MONITOR_LIST:    'monitor_list',
+  MONITOR_SWITCH:  'monitor_switch',
+  MOUSE_MOVE:      'mouse_move',
+  MOUSE_CLICK:     'mouse_click',
+  MOUSE_SCROLL:    'mouse_scroll',
+  KEY:             'key',
+  CHAT:            'chat',
+  FILE_START:      'file_start',
+  FILE_CHUNK:      'file_chunk',
+  FILE_END:        'file_end',
+  AUTH:            'auth',
+  AUTH_OK:         'auth_ok',
+  AUTH_FAIL:       'auth_fail',
+  CLIPBOARD:       'clipboard',
+  QUALITY:         'quality',
+  ACCESS_REQUEST:  'access_request',   // viewer → server: solicita acesso sem senha
+  ACCESS_ACCEPTED: 'access_accepted',  // server → viewer: agente aceitou
+  ACCESS_REJECTED: 'access_rejected',  // server → viewer: agente recusou
+  WINDOW_FOCUS:    'window_focus',     // server → viewer: janela em primeiro plano mudou {x,y,w,h}
 };
 
 const PROTOCOL_VERSION    = 3;

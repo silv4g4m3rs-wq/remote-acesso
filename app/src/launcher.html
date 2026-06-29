@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Remote Acesso</title>
+  <link rel="stylesheet" href="theme.css">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -163,6 +164,14 @@
     .update-badge.error     { display: block; background: rgba(248,113,113,0.12); color: #f87171; border: 1px solid rgba(248,113,113,0.2); }
     .update-progress        { font-size: 10px; color: var(--dim); display: none; }
     .update-progress.visible { display: block; }
+
+    .settings-btn {
+      background: none; border: none; color: var(--dim);
+      cursor: pointer; font-size: 15px; padding: 2px 5px;
+      border-radius: 4px; line-height: 1; margin-left: 2px;
+      transition: color 0.15s, background 0.15s;
+    }
+    .settings-btn:hover { color: var(--text); background: rgba(255,255,255,0.06); }
   </style>
 </head>
 <body>
@@ -196,6 +205,7 @@
 
     <div class="footer">
       <span class="version" id="version">v1.0.0</span>
+      <button class="settings-btn" id="btn-settings" title="Configurações">⚙</button>
       <span class="update-progress" id="update-progress"></span>
       <span class="update-badge" id="update-badge" title="Clique para instalar"></span>
     </div>
@@ -239,6 +249,9 @@
     badge.addEventListener('click', () => {
       if (badge.classList.contains('ready')) window.launcherAPI.installUpdate();
     });
+
+    document.getElementById('btn-settings').addEventListener('click', () =>
+      window.launcherAPI.openSettings());
   </script>
 </body>
 </html>
