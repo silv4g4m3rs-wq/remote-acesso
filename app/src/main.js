@@ -322,7 +322,7 @@ function startAgentMode() {
   agentServer.on('access-request', (ws, ip) => {
     const id = ++pendingReqCounter;
     pendingRequests.set(id, ws);
-    agentUIWin?.webContents.send('ui-access-request', { id, ip });
+    agentUIWin?.webContents.send('ui-access-request', { id, ip, sound: !!loadSettings().soundOnConnectionRequest });
     // Bring agent window to front so the user sees the request
     if (agentUIWin && !agentUIWin.isDestroyed()) {
       if (agentUIWin.isMinimized()) agentUIWin.restore();

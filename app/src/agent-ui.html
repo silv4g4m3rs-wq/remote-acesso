@@ -227,10 +227,28 @@
       statusEl.textContent = 'Erro de captura: ' + msg;
     });
 
-    window.agentAPI.onAccessRequest(({ id, ip }) => {
+    window.agentAPI.onAccessRequest(({ id, ip, sound }) => {
       pendingReqId = id;
       accessIp.textContent = ip;
       accessCard.classList.add('visible');
+      if (sound) {
+        try {
+          const ctx = new AudioContext();
+          const gain = ctx.createGain();
+          gain.connect(ctx.destination);
+          gain.gain.setValueAtTime(0.25, ctx.currentTime);
+          [880, 1100].forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            osc.connect(gain);
+            osc.start(ctx.currentTime + i * 0.12);
+            osc.stop(ctx.currentTime + i * 0.12 + 0.1);
+          });
+          gain.gain.setValueAtTime(0.25, ctx.currentTime + 0.22);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+        } catch {}
+      }
     });
 
     // Mode buttons
