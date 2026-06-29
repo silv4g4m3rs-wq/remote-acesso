@@ -50,8 +50,31 @@ let vReconnCount = 0;
 let vReconnTimer = null;
 let vInFile      = null;
 let vInChunks    = [];
-let _maxToFs     = false; // tracks maximize→fullscreen for hideTaskbarMaximized
+let _maxToFs              = false; // tracks maximize→fullscreen for hideTaskbarMaximized
+let _sessionAuthenticated = false; // true once viewer authenticates; drives askFeedbackEndSession
 const MAX_RECONN = 5;
+
+// ── Session feedback ──────────────────────────────────────────────────────────
+async function showSessionFeedback(parentWin) {
+  const labels  = ['Ruim', 'Regular', 'Bom', 'Ótimo'];
+  const { response } = await dialog.showMessageBox(parentWin, {
+    type:      'question',
+    title:     'Avalie a sessão',
+    message:   'Como foi a sessão remota?',
+    detail:    'Sua avaliação ajuda a melhorar o aplicativo.',
+    buttons:   [...labels, 'Pular'],
+    defaultId: 2,
+    cancelId:  4,
+  });
+  if (response < 4) {
+    try {
+      const dir = path.join(app.getPath('userData'), 'feedback');
+      fs.mkdirSync(dir, { recursive: true });
+      const entry = JSON.stringify({ ts: new Date().toISOString(), rating: labels[response], host: vLastOpts?.host });
+      fs.appendFileSync(path.join(dir, 'feedback.jsonl'), entry + '\n', 'utf8');
+    } catch {}
+  }
+}
 
 // ── Chat history ──────────────────────────────────────────────────────────────
 let chatLogFile = null;
@@ -449,6 +472,14 @@ function startViewerMode() {
   });
   viewerWin.setMenuBarVisibility(false);
   viewerWin.loadFile(src('viewer.html'));
+  viewerWin.on('close', async event => {
+    if (_sessionAuthenticated && loadSettings().askFeedbackEndSession) {
+      event.preventDefault();
+      _sessionAuthenticated = false;
+      await showSessionFeedback(viewerWin);
+      viewerWin?.destroy();
+    }
+  });
   viewerWin.on('closed',            () => { stopViewerMode(); viewerWin = null; openLauncher(); });
   viewerWin.on('enter-full-screen', () => viewerWin?.webContents.send('fullscreen-change', true));
   viewerWin.on('leave-full-screen', () => { _maxToFs = false; viewerWin?.webContents.send('fullscreen-change', false); });
@@ -478,7 +509,7 @@ function startViewerMode() {
 }
 
 function stopViewerMode() {
-  vIntentional = true; _maxToFs = false;
+  vIntentional = true; _maxToFs = false; _sessionAuthenticated = false;
   clearTimeout(vReconnTimer);
   vAuthed = false; vEncKey = null;
   require('./win-key-hook').stopHook();
@@ -566,7 +597,7 @@ function vDoConnect({ host, port, password, requestAccess }) {
           vWs?.close(); vWs = null; return;
         }
         if (msg.type === MSG.AUTH_OK) {
-          vAuthed = true; vReconnCount = 0;
+          vAuthed = true; vReconnCount = 0; _sessionAuthenticated = true;
           if (viewerWin?.isFocused() && loadSettings().transmitHotkeys) require('./win-key-hook').startHook();
           viewerWin?.webContents.send('display-settings', loadSettings().display || DEFAULT_DISPLAY);
           resolve({ ok: true });
@@ -658,7 +689,7 @@ function vHandleMessage(plain) {
         if (msg.text) { clipboard.writeText(msg.text); viewerWin?.webContents.send('clipboard-synced'); }
         break;
       case MSG.ACCESS_ACCEPTED:
-        vAuthed = true; vReconnCount = 0;
+        vAuthed = true; vReconnCount = 0; _sessionAuthenticated = true;
         if (viewerWin?.isFocused() && loadSettings().transmitHotkeys)
           require('./win-key-hook').startHook(key => {
             if (!vAuthed || !key) return;
