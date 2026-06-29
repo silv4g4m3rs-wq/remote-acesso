@@ -408,6 +408,19 @@ window.electronAPI.onMonitorList(monitors => {
 monitorSelect.addEventListener('change', () =>
   window.electronAPI.switchMonitor(parseInt(monitorSelect.value, 10)));
 
+// ── Screenshot ────────────────────────────────────────────────────────────────
+const screenshotStatus = document.getElementById('screenshot-status');
+
+async function takeScreenshot() {
+  if (!connected) return;
+  const dataUrl = canvas.toDataURL('image/png');
+  const file = await window.electronAPI.takeScreenshot(dataUrl);
+  screenshotStatus.textContent = file.split(/[\\/]/).pop();
+  setTimeout(() => { screenshotStatus.textContent = ''; }, 4000);
+}
+
+document.getElementById('btn-screenshot').addEventListener('click', takeScreenshot);
+
 // ── Clipboard ─────────────────────────────────────────────────────────────────
 document.getElementById('btn-clipboard').addEventListener('click', () => {
   if (!connected) return;
@@ -497,6 +510,8 @@ document.addEventListener('keydown', e => {
   if (e.key === 'F11') { e.preventDefault(); toggleFullscreen(); return; }
   // Escape: exit fullscreen if active, never send to remote
   if (e.key === 'Escape' && document.body.classList.contains('fullscreen')) { toggleFullscreen(); return; }
+  // Ctrl+Shift+S: screenshot, never send to remote
+  if (e.ctrlKey && e.shiftKey && e.code === 'KeyS') { e.preventDefault(); takeScreenshot(); return; }
 
   if (!connected || document.activeElement === chatInput) return;
   e.preventDefault();

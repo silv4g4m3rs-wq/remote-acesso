@@ -48,4 +48,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onAccessAccepted:  cb => ipcRenderer.on('access-accepted', cb),
   onAccessRejected:  cb => ipcRenderer.on('access-rejected', cb),
   onWindowFocus:     cb => ipcRenderer.on('window-focus', (_, r) => cb(r)),
+  takeScreenshot:    dataUrl => ipcRenderer.invoke('take-screenshot', dataUrl),
 });

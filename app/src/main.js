@@ -908,6 +908,19 @@ app.whenReady().then(async () => {
     }
   });
 
+  // Screenshot (viewer captures canvas → saves locally)
+  ipcMain.handle('take-screenshot', (_, dataUrl) => {
+    const s   = loadSettings();
+    const dir = s.screenshotDir === 'custom' && s.screenshotCustomPath
+      ? s.screenshotCustomPath
+      : path.join(os.homedir(), 'Pictures', 'RemoteAcesso');
+    fs.mkdirSync(dir, { recursive: true });
+    const ts   = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const file = path.join(dir, `screenshot-${ts}.png`);
+    fs.writeFileSync(file, Buffer.from(dataUrl.slice(dataUrl.indexOf(',') + 1), 'base64'));
+    return file;
+  });
+
   // File send (viewer → agent)
   ipcMain.handle('send-file', async () => {
     if (!viewerWin) return;
