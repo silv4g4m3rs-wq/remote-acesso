@@ -52,6 +52,24 @@ let vInFile      = null;
 let vInChunks    = [];
 const MAX_RECONN = 5;
 
+// ── Chat history ──────────────────────────────────────────────────────────────
+let chatLogFile = null;
+
+function appendChatLog(from, text) {
+  const s = loadSettings();
+  if (s.chatHistoryMode === 'none') return;
+  if (!chatLogFile) {
+    const dir = s.chatHistoryMode === 'custom' && s.chatHistoryCustomPath
+      ? s.chatHistoryCustomPath
+      : path.join(app.getPath('userData'), 'chat');
+    fs.mkdirSync(dir, { recursive: true });
+    const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    chatLogFile = path.join(dir, `chat-${ts}.txt`);
+  }
+  const time = new Date().toTimeString().slice(0, 8);
+  try { fs.appendFileSync(chatLogFile, `[${time}] ${from}: ${text}\n`, 'utf8'); } catch {}
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function generatePassword() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -341,6 +359,7 @@ function startAgentMode() {
   agentServer.on('viewer-count', count => {
     agentUIWin?.webContents.send('ui-viewer-count', count);
     if (count > 0 && !captureWin) startCaptureWin();
+    if (count === 0) chatLogFile = null;
   });
 
   agentServer.on('monitor-switch', idx => {
@@ -352,6 +371,7 @@ function startAgentMode() {
   agentServer.on('input', msg => Input.handleInput(msg));
 
   agentServer.on('chat', text => {
+    appendChatLog('Viewer', text);
     if (!agentChatWin || agentChatWin.isDestroyed()) {
       agentChatWin = createChatWindow('Chat — Viewer');
       agentChatWin.on('closed', () => { agentChatWin = null; });
@@ -559,6 +579,7 @@ function vDoConnect({ host, port, password, requestAccess }) {
       const wasAuthed = vAuthed;
       safeResolve({ ok: false, error: 'Conexao recusada' });
       vAuthed = false; vWs = null;
+      if (wasAuthed) chatLogFile = null;
       require('./win-key-hook').stopHook();
       if (requestAccess && !wasAuthed && !vIntentional) {
         // Connection closed while waiting for agent response
@@ -612,6 +633,7 @@ function vHandleMessage(plain) {
         viewerWin?.webContents.send('monitor-list', msg.monitors); break;
       case MSG.CHAT: {
         const _text = msg.text;
+        appendChatLog('Agente', _text);
         const _title = vLastOpts?.host ? `Chat — ${vLastOpts.host}` : 'Chat';
         if (!chatWin || chatWin.isDestroyed()) {
           chatWin = createChatWindow(_title);
@@ -868,6 +890,7 @@ app.whenReady().then(async () => {
   ipcMain.on('input', (_, msg)  => vSend(msg));
 
   ipcMain.on('chat', (_, text) => {
+    appendChatLog('Eu', text);
     vSend({ type: MSG.CHAT, text });
     const _title = vLastOpts?.host ? `Chat — ${vLastOpts.host}` : 'Chat';
     if (!chatWin || chatWin.isDestroyed()) {
@@ -888,8 +911,10 @@ app.whenReady().then(async () => {
 
   ipcMain.on('chat-send', (event, text) => {
     if (chatWin && !chatWin.isDestroyed() && event.sender === chatWin.webContents) {
+      appendChatLog('Eu', text);
       vSend({ type: MSG.CHAT, text });
     } else if (agentChatWin && !agentChatWin.isDestroyed() && event.sender === agentChatWin.webContents) {
+      appendChatLog('Eu', text);
       agentServer?.broadcastChat(text);
     }
   });
