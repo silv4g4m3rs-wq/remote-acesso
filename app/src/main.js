@@ -50,6 +50,7 @@ let vReconnCount = 0;
 let vReconnTimer = null;
 let vInFile      = null;
 let vInChunks    = [];
+let _maxToFs     = false; // tracks maximize→fullscreen for hideTaskbarMaximized
 const MAX_RECONN = 5;
 
 // ── Chat history ──────────────────────────────────────────────────────────────
@@ -450,7 +451,13 @@ function startViewerMode() {
   viewerWin.loadFile(src('viewer.html'));
   viewerWin.on('closed',            () => { stopViewerMode(); viewerWin = null; openLauncher(); });
   viewerWin.on('enter-full-screen', () => viewerWin?.webContents.send('fullscreen-change', true));
-  viewerWin.on('leave-full-screen', () => viewerWin?.webContents.send('fullscreen-change', false));
+  viewerWin.on('leave-full-screen', () => { _maxToFs = false; viewerWin?.webContents.send('fullscreen-change', false); });
+  viewerWin.on('maximize', () => {
+    if (loadSettings().hideTaskbarMaximized) { _maxToFs = true; viewerWin.setFullScreen(true); }
+  });
+  viewerWin.on('unmaximize', () => {
+    if (_maxToFs) { _maxToFs = false; viewerWin.setFullScreen(false); }
+  });
   viewerWin.on('focus', () => {
     if (vAuthed && loadSettings().transmitHotkeys) require('./win-key-hook').startHook(key => {
       if (!vAuthed || !key) return;
@@ -471,7 +478,7 @@ function startViewerMode() {
 }
 
 function stopViewerMode() {
-  vIntentional = true;
+  vIntentional = true; _maxToFs = false;
   clearTimeout(vReconnTimer);
   vAuthed = false; vEncKey = null;
   require('./win-key-hook').stopHook();
