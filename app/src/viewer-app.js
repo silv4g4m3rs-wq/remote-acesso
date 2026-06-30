@@ -497,7 +497,7 @@ btnFullscreen.addEventListener('click', toggleFullscreen);
 
 // ── Keyboard input ────────────────────────────────────────────────────────────
 const MODIFIER_CODES = ['ShiftLeft','ShiftRight','ControlLeft','ControlRight',
-                        'AltLeft','AltRight','MetaLeft','MetaRight'];
+                        'AltLeft','AltRight'];
 
 function releaseModifiers() {
   if (!connected) return;
@@ -512,6 +512,8 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && document.body.classList.contains('fullscreen')) { toggleFullscreen(); return; }
   // Ctrl+Shift+S: screenshot, never send to remote
   if (e.ctrlKey && e.shiftKey && e.code === 'KeyS') { e.preventDefault(); takeScreenshot(); return; }
+  // Win key: never send to remote — causes system-level interruption on the agent machine
+  if (e.code === 'MetaLeft' || e.code === 'MetaRight') { e.preventDefault(); return; }
 
   if (!connected || document.activeElement === chatInput) return;
   e.preventDefault();
@@ -521,6 +523,7 @@ document.addEventListener('keydown', e => {
 document.addEventListener('keyup', e => {
   if (e.key === 'F11') return;
   if (e.key === 'Escape' && document.body.classList.contains('fullscreen')) return;
+  if (e.code === 'MetaLeft' || e.code === 'MetaRight') return;
 
   if (!connected || document.activeElement === chatInput) return;
   e.preventDefault();

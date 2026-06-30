@@ -536,6 +536,12 @@ function vDoConnect({ host, port, password, requestAccess }) {
       if (!resolved) { resolved = true; resolve(result); }
     }
 
+    // Abort if the WebSocket never authenticates within 10 s (prevents reconnect from getting stuck
+    // when the agent has a zombie socket that accepts TCP but never completes the handshake).
+    const connTimeout = setTimeout(() => {
+      if (!vAuthed) { newWs.terminate?.() || newWs.close(); }
+    }, 10_000);
+
     newWs.on('open', () => {});
 
     newWs.on('message', data => {
@@ -597,6 +603,7 @@ function vDoConnect({ host, port, password, requestAccess }) {
           vWs?.close(); vWs = null; return;
         }
         if (msg.type === MSG.AUTH_OK) {
+          clearTimeout(connTimeout);
           vAuthed = true; vReconnCount = 0; _sessionAuthenticated = true;
           if (viewerWin?.isFocused() && loadSettings().transmitHotkeys) require('./win-key-hook').startHook();
           viewerWin?.webContents.send('display-settings', loadSettings().display || DEFAULT_DISPLAY);
@@ -613,6 +620,7 @@ function vDoConnect({ host, port, password, requestAccess }) {
     });
 
     newWs.on('close', () => {
+      clearTimeout(connTimeout);
       vEncKey = null;
       const wasAuthed = vAuthed;
       safeResolve({ ok: false, error: 'Conexao recusada' });
@@ -689,6 +697,7 @@ function vHandleMessage(plain) {
         if (msg.text) { clipboard.writeText(msg.text); viewerWin?.webContents.send('clipboard-synced'); }
         break;
       case MSG.ACCESS_ACCEPTED:
+        clearTimeout(connTimeout);
         vAuthed = true; vReconnCount = 0; _sessionAuthenticated = true;
         if (viewerWin?.isFocused() && loadSettings().transmitHotkeys)
           require('./win-key-hook').startHook(key => {
