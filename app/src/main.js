@@ -494,10 +494,15 @@ function startViewerMode() {
     vSend({ type: MSG.KEY, code: key.code, key: key.key, down: key.down });
   }
 
+  let _blurHookTimer = null;
   viewerWin.on('focus', () => {
+    clearTimeout(_blurHookTimer);
     if (vAuthed && loadSettings().transmitHotkeys) require('./win-key-hook').startHook(vHookKey);
   });
-  viewerWin.on('blur',  () => require('./win-key-hook').stopHook());
+  viewerWin.on('blur', () => {
+    // Delay stopping hook so keys that briefly lose focus (e.g. Win key) are still blocked
+    _blurHookTimer = setTimeout(() => require('./win-key-hook').stopHook(), 500);
+  });
 
   vDiscovery = new ViewerDiscovery();
   vDiscovery.on('agent', agent => viewerWin?.webContents.send('agent-found', agent));
@@ -606,9 +611,9 @@ function vDoConnect({ host, port, password, requestAccess }) {
         if (msg.type === MSG.AUTH_OK) {
           clearTimeout(connTimeout);
           vAuthed = true; vReconnCount = 0; _sessionAuthenticated = true;
-          if (viewerWin?.isFocused() && loadSettings().transmitHotkeys) require('./win-key-hook').startHook(vHookKey);
-          viewerWin?.webContents.send('display-settings', loadSettings().display || DEFAULT_DISPLAY);
           resolve({ ok: true });
+          try { if (loadSettings().transmitHotkeys) require('./win-key-hook').startHook(vHookKey); } catch {}
+          viewerWin?.webContents.send('display-settings', loadSettings().display || DEFAULT_DISPLAY);
         } else {
           resolve({ ok: false, error: 'Senha incorreta' });
           vWs?.close(); vWs = null;
@@ -700,9 +705,8 @@ function vHandleMessage(plain) {
       case MSG.ACCESS_ACCEPTED:
         clearTimeout(connTimeout);
         vAuthed = true; vReconnCount = 0; _sessionAuthenticated = true;
-        if (viewerWin?.isFocused() && loadSettings().transmitHotkeys)
-          require('./win-key-hook').startHook(vHookKey);
         viewerWin?.webContents.send('access-accepted');
+        try { if (loadSettings().transmitHotkeys) require('./win-key-hook').startHook(vHookKey); } catch {}
         viewerWin?.webContents.send('display-settings', loadSettings().display || DEFAULT_DISPLAY);
         break;
       case MSG.ACCESS_REJECTED:
@@ -970,10 +974,13 @@ app.whenReady().then(async () => {
 
   ipcMain.on('toggle-fullscreen', (_, mode) => {
     if (!viewerWin) return;
-    if (mode === 'windowed') {
+    if (viewerWin.isFullScreen()) {
+      // Always exit OS fullscreen via setFullScreen regardless of mode setting
+      viewerWin.setFullScreen(false);
+    } else if (mode === 'windowed') {
       viewerWin.isMaximized() ? viewerWin.unmaximize() : viewerWin.maximize();
     } else {
-      viewerWin.setFullScreen(!viewerWin.isFullScreen());
+      viewerWin.setFullScreen(true);
     }
   });
 

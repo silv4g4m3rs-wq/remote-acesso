@@ -8,8 +8,12 @@ const os   = require('os');
 // Win key é forwarded via stdout para o processo pai poder enviá-la ao remoto.
 // Alt+Tab: WM_SYSKEYDOWN (wParam=0x104) com vk=Tab (0x09) — bloqueado sem forward
 // (Alt já viaja pelo renderer normalmente; só o Tab do Alt+Tab é interceptado).
-const PS1 = `Add-Type @"
+// PS1 receives parent PID as first arg and self-exits when that process dies
+const PS1 = `param([int]$parentPid)
+Add-Type @"
 using System;
+using System.Threading;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 public class WinKeyBlocker {
@@ -22,6 +26,8 @@ public class WinKeyBlocker {
     [DllImport("user32.dll")] static extern IntPtr CallNextHookEx(IntPtr h, int n, IntPtr w, IntPtr l);
     [DllImport("kernel32.dll", CharSet=CharSet.Auto)] static extern IntPtr GetModuleHandle(string n);
     [DllImport("user32.dll")] static extern int GetMessage(out MSG m, IntPtr h, uint a, uint b);
+    [DllImport("user32.dll")] static extern bool PostThreadMessage(uint tid, uint msg, IntPtr w, IntPtr l);
+    [DllImport("kernel32.dll")] static extern uint GetCurrentThreadId();
 
     [StructLayout(LayoutKind.Sequential)]
     struct MSG { public IntPtr hwnd; public uint msg; public IntPtr wParam; public IntPtr lParam; public int t, x, y; }
@@ -45,9 +51,19 @@ public class WinKeyBlocker {
         return CallNextHookEx(_hook, nCode, wParam, lParam);
     }
 
-    public static void Start() {
-        Console.Out.AutoFlush = true;
-        using (var p = System.Diagnostics.Process.GetCurrentProcess())
+    public static void Start(int parentPid) {
+        Console.SetOut(new System.IO.StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true });
+        uint mainTid = GetCurrentThreadId();
+        // Watch parent process — exit if it dies
+        new Thread(() => {
+            try {
+                var p = Process.GetProcessById(parentPid);
+                p.WaitForExit();
+            } catch {}
+            PostThreadMessage(mainTid, 0x0012, IntPtr.Zero, IntPtr.Zero); // WM_QUIT
+        }) { IsBackground = true }.Start();
+
+        using (var p = Process.GetCurrentProcess())
         using (var m = p.MainModule)
             _hook = SetWindowsHookEx(13, _proc, GetModuleHandle(m.ModuleName), 0);
         MSG msg;
@@ -56,7 +72,7 @@ public class WinKeyBlocker {
     }
 }
 "@
-[WinKeyBlocker]::Start()
+[WinKeyBlocker]::Start($parentPid)
 `;
 
 let _proc    = null;
@@ -65,7 +81,7 @@ let _onKey   = null;
 
 function _script() {
   if (!_tmpPath) {
-    _tmpPath = path.join(os.tmpdir(), 'ra-winkey-hook-v4.ps1');
+    _tmpPath = path.join(os.tmpdir(), 'ra-winkey-hook-v6.ps1');
     fs.writeFileSync(_tmpPath, PS1, 'utf8');
   }
   return _tmpPath;
@@ -76,7 +92,7 @@ function startHook(onKey) {
   if (_proc) return;
 
   _proc = spawn('powershell.exe',
-    ['-NonInteractive', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', _script()],
+    ['-NonInteractive', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', _script(), process.pid.toString()],
     { stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true });
 
   let buf = '';
