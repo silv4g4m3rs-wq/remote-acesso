@@ -489,12 +489,13 @@ function startViewerMode() {
   viewerWin.on('unmaximize', () => {
     if (_maxToFs) { _maxToFs = false; viewerWin.setFullScreen(false); }
   });
+  function vHookKey(key) {
+    if (!vAuthed || !key?.code) return;
+    vSend({ type: MSG.KEY, code: key.code, key: key.key, down: key.down });
+  }
+
   viewerWin.on('focus', () => {
-    if (vAuthed && loadSettings().transmitHotkeys) require('./win-key-hook').startHook(key => {
-      if (!vAuthed || !key) return;
-      if (key.vk === 0x5B || key.vk === 0x5C)
-        vSend({ type: MSG.KEY, code: key.vk === 0x5B ? 'MetaLeft' : 'MetaRight', key: 'Meta', down: key.down });
-    });
+    if (vAuthed && loadSettings().transmitHotkeys) require('./win-key-hook').startHook(vHookKey);
   });
   viewerWin.on('blur',  () => require('./win-key-hook').stopHook());
 
@@ -605,7 +606,7 @@ function vDoConnect({ host, port, password, requestAccess }) {
         if (msg.type === MSG.AUTH_OK) {
           clearTimeout(connTimeout);
           vAuthed = true; vReconnCount = 0; _sessionAuthenticated = true;
-          if (viewerWin?.isFocused() && loadSettings().transmitHotkeys) require('./win-key-hook').startHook();
+          if (viewerWin?.isFocused() && loadSettings().transmitHotkeys) require('./win-key-hook').startHook(vHookKey);
           viewerWin?.webContents.send('display-settings', loadSettings().display || DEFAULT_DISPLAY);
           resolve({ ok: true });
         } else {
@@ -700,11 +701,7 @@ function vHandleMessage(plain) {
         clearTimeout(connTimeout);
         vAuthed = true; vReconnCount = 0; _sessionAuthenticated = true;
         if (viewerWin?.isFocused() && loadSettings().transmitHotkeys)
-          require('./win-key-hook').startHook(key => {
-            if (!vAuthed || !key) return;
-            if (key.vk === 0x5B || key.vk === 0x5C)
-              vSend({ type: MSG.KEY, code: key.vk === 0x5B ? 'MetaLeft' : 'MetaRight', key: 'Meta', down: key.down });
-          });
+          require('./win-key-hook').startHook(vHookKey);
         viewerWin?.webContents.send('access-accepted');
         viewerWin?.webContents.send('display-settings', loadSettings().display || DEFAULT_DISPLAY);
         break;

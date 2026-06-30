@@ -33,10 +33,14 @@ public class WinKeyBlocker {
             bool down = (msg == 0x0100 || msg == 0x0104);
 
             if (vk == 0x5B || vk == 0x5C) {
-                Console.WriteLine("{\\"vk\\":" + vk.ToString() + ",\\"down\\":" + (down ? "true" : "false") + "}");
+                string c = (vk == 0x5B) ? "MetaLeft" : "MetaRight";
+                Console.WriteLine("{\\"vk\\":" + vk.ToString() + ",\\"code\\":\\"" + c + "\\",\\"key\\":\\"Meta\\",\\"down\\":" + (down ? "true" : "false") + "}");
                 return (IntPtr)1;
             }
-            if (vk == 0x09 && msg == 0x0104) return (IntPtr)1;
+            if (vk == 0x09 && (msg == 0x0104 || msg == 0x0105)) {
+                Console.WriteLine("{\\"vk\\":9,\\"code\\":\\"Tab\\",\\"key\\":\\"Tab\\",\\"down\\":" + (down ? "true" : "false") + "}");
+                return (IntPtr)1;
+            }
         }
         return CallNextHookEx(_hook, nCode, wParam, lParam);
     }
@@ -61,7 +65,7 @@ let _onKey   = null;
 
 function _script() {
   if (!_tmpPath) {
-    _tmpPath = path.join(os.tmpdir(), 'ra-winkey-hook-v3.ps1');
+    _tmpPath = path.join(os.tmpdir(), 'ra-winkey-hook-v4.ps1');
     fs.writeFileSync(_tmpPath, PS1, 'utf8');
   }
   return _tmpPath;

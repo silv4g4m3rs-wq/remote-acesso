@@ -134,6 +134,8 @@ async function submitAccessRequest() {
 
 window.electronAPI.onAccessAccepted(() => {
   connected = true;
+  if (document.body.classList.contains('fullscreen'))
+    navigator.keyboard?.lock(['MetaLeft','MetaRight','AltLeft','AltRight']).catch(() => {});
   overlay.classList.add('hidden');
   toolsPanel.style.display = '';
   filePanel.style.display  = '';
@@ -202,6 +204,10 @@ async function submitAuth() {
   pendingAuthAgent = null; pendingAuthLi = null;
   currentAgent = agent; connected = true;
 
+  // Capture system keys in fullscreen so they only affect the remote machine
+  if (document.body.classList.contains('fullscreen'))
+    navigator.keyboard?.lock(['MetaLeft','MetaRight','AltLeft','AltRight']).catch(() => {});
+
   document.querySelectorAll('.agent-item').forEach(el => el.classList.remove('active'));
   li?.classList.add('active');
 
@@ -253,6 +259,7 @@ function setDisconnected() {
   connected = false; currentAgent = null;
   chatWindowOpened = false;
   clearTimeout(firstFrameTimer); firstFrameTimer = null;
+  navigator.keyboard?.unlock();
   clearCursor();
   overlay.classList.remove('hidden');
   overlayText.textContent = 'Selecione um agente para conectar';
@@ -513,13 +520,19 @@ window.electronAPI.onFullscreenChange(fs => {
   document.body.classList.toggle('fullscreen', fs);
   btnFullscreen.textContent = fs ? '⤡' : '⛶';
   btnFullscreen.title = fs ? 'Sair da tela inteira (F11)' : 'Tela inteira (F11)';
+  // Keyboard capture: lock system keys in fullscreen so they only affect the remote machine
+  if (fs && connected) {
+    navigator.keyboard?.lock(['MetaLeft','MetaRight','AltLeft','AltRight']).catch(() => {});
+  } else {
+    navigator.keyboard?.unlock();
+  }
 });
 
 btnFullscreen.addEventListener('click', toggleFullscreen);
 
 // ── Keyboard input ────────────────────────────────────────────────────────────
 const MODIFIER_CODES = ['ShiftLeft','ShiftRight','ControlLeft','ControlRight',
-                        'AltLeft','AltRight'];
+                        'AltLeft','AltRight','MetaLeft','MetaRight'];
 
 function releaseModifiers() {
   if (!connected) return;
@@ -534,8 +547,6 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && document.body.classList.contains('fullscreen')) { toggleFullscreen(); return; }
   // Ctrl+Shift+S: screenshot, never send to remote
   if (e.ctrlKey && e.shiftKey && e.code === 'KeyS') { e.preventDefault(); takeScreenshot(); return; }
-  // Win key: never send to remote — causes system-level interruption on the agent machine
-  if (e.code === 'MetaLeft' || e.code === 'MetaRight') { e.preventDefault(); return; }
 
   if (!connected || document.activeElement === chatInput) return;
   e.preventDefault();
@@ -545,7 +556,6 @@ document.addEventListener('keydown', e => {
 document.addEventListener('keyup', e => {
   if (e.key === 'F11') return;
   if (e.key === 'Escape' && document.body.classList.contains('fullscreen')) return;
-  if (e.code === 'MetaLeft' || e.code === 'MetaRight') return;
 
   if (!connected || document.activeElement === chatInput) return;
   e.preventDefault();
