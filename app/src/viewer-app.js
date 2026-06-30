@@ -541,10 +541,18 @@ function releaseModifiers() {
 }
 
 document.addEventListener('keydown', e => {
-  // F11: toggle fullscreen, never send to remote
-  if (e.key === 'F11') { e.preventDefault(); toggleFullscreen(); return; }
-  // Escape: exit fullscreen if active, never send to remote
-  if (e.key === 'Escape' && document.body.classList.contains('fullscreen')) { toggleFullscreen(); return; }
+  // F11: toggle local fullscreen AND forward to remote
+  if (e.key === 'F11') {
+    e.preventDefault(); toggleFullscreen();
+    if (connected) window.electronAPI.sendInput({ type: 'key', code: 'F11', key: 'F11', down: true });
+    return;
+  }
+  // Escape: exit local fullscreen AND forward to remote
+  if (e.key === 'Escape' && document.body.classList.contains('fullscreen')) {
+    toggleFullscreen();
+    if (connected) window.electronAPI.sendInput({ type: 'key', code: 'Escape', key: 'Escape', down: true });
+    return;
+  }
   // Ctrl+Shift+S: screenshot, never send to remote
   if (e.ctrlKey && e.shiftKey && e.code === 'KeyS') { e.preventDefault(); takeScreenshot(); return; }
 
@@ -554,8 +562,15 @@ document.addEventListener('keydown', e => {
 });
 
 document.addEventListener('keyup', e => {
-  if (e.key === 'F11') return;
-  if (e.key === 'Escape' && document.body.classList.contains('fullscreen')) return;
+  // F11/Escape keyup: forward to remote (local fullscreen was handled on keydown)
+  if (e.key === 'F11') {
+    if (connected) window.electronAPI.sendInput({ type: 'key', code: 'F11', key: 'F11', down: false });
+    return;
+  }
+  if (e.key === 'Escape' && document.body.classList.contains('fullscreen')) {
+    if (connected) window.electronAPI.sendInput({ type: 'key', code: 'Escape', key: 'Escape', down: false });
+    return;
+  }
 
   if (!connected || document.activeElement === chatInput) return;
   e.preventDefault();
