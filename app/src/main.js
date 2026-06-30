@@ -593,6 +593,7 @@ function vDoConnect({ host, port, password, requestAccess }) {
             Buffer.from(JSON.stringify({ type: MSG.ACCESS_REQUEST })),
           ]);
           newWs.send(encrypt(localKey, plain));
+          clearTimeout(connTimeout); // human approval can take minutes — disable the 10 s auth timeout
           safeResolve({ ok: true, pending: true });
         } else {
           const authPlain = Buffer.concat([
@@ -716,7 +717,6 @@ function vHandleMessage(plain) {
         if (msg.text) { clipboard.writeText(msg.text); viewerWin?.webContents.send('clipboard-synced'); }
         break;
       case MSG.ACCESS_ACCEPTED:
-        clearTimeout(connTimeout);
         vAuthed = true; vReconnCount = 0; _sessionAuthenticated = true;
         viewerWin?.webContents.send('access-accepted');
         try { if (loadSettings().transmitHotkeys) require('./win-key-hook').startHook(vHookKey); } catch {}
