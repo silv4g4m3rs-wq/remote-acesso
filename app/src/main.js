@@ -483,6 +483,19 @@ function startViewerMode() {
   viewerWin.on('closed',            () => { stopViewerMode(); viewerWin = null; openLauncher(); });
   viewerWin.on('enter-full-screen', () => viewerWin?.webContents.send('fullscreen-change', true));
   viewerWin.on('leave-full-screen', () => { _maxToFs = false; viewerWin?.webContents.send('fullscreen-change', false); });
+
+  // Windows intercepts F11 at OS level in native fullscreen before renderer keydown fires.
+  // before-input-event runs in the main process and works regardless.
+  viewerWin.webContents.on('before-input-event', (event, input) => {
+    if (input.type !== 'keyDown') return;
+    if (input.key === 'F11') {
+      event.preventDefault();
+      viewerWin.setFullScreen(!viewerWin.isFullScreen());
+    } else if (input.key === 'Escape' && viewerWin.isFullScreen()) {
+      event.preventDefault();
+      viewerWin.setFullScreen(false);
+    }
+  });
   viewerWin.on('maximize', () => {
     if (loadSettings().hideTaskbarMaximized) { _maxToFs = true; viewerWin.setFullScreen(true); }
   });
