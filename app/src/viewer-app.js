@@ -138,6 +138,13 @@ window.electronAPI.onAccessAccepted(() => {
   toolsPanel.style.display = '';
   filePanel.style.display  = '';
   chatPanel.style.display  = '';
+  clearTimeout(firstFrameTimer);
+  firstFrameTimer = setTimeout(() => {
+    if (connected && !pendingBitmap) {
+      overlay.classList.remove('hidden');
+      overlayText.textContent = 'Sem sinal de vídeo — reinicie o agente remoto.';
+    }
+  }, 8000);
   if (currentAgent)
     setStatus(`${currentAgent.hostname} (${currentAgent.host})`, true);
 
@@ -204,6 +211,15 @@ async function submitAuth() {
   chatPanel.style.display  = '';
   setStatus(`${agent.hostname} (${agent.host})`, true);
 
+  // If no frame arrives within 8 s, the agent capture likely failed
+  clearTimeout(firstFrameTimer);
+  firstFrameTimer = setTimeout(() => {
+    if (connected && !pendingBitmap) {
+      overlay.classList.remove('hidden');
+      overlayText.textContent = 'Sem sinal de vídeo — reinicie o agente remoto.';
+    }
+  }, 8000);
+
   // Load per-device or global display settings, then apply quality to agent
   (async () => {
     let ds = dSettings;
@@ -236,6 +252,7 @@ window.electronAPI.onReconnectFailed(() => setDisconnected());
 function setDisconnected() {
   connected = false; currentAgent = null;
   chatWindowOpened = false;
+  clearTimeout(firstFrameTimer); firstFrameTimer = null;
   clearCursor();
   overlay.classList.remove('hidden');
   overlayText.textContent = 'Selecione um agente para conectar';
@@ -348,6 +365,7 @@ let pendingBitmap  = null;
 let rafScheduled   = false;
 let pendingWidth   = 0;
 let pendingHeight  = 0;
+let firstFrameTimer = null; // detects when agent sends no frames after auth
 
 // Mouse move is flushed through RAF to cap sends at display refresh rate (~60fps)
 let pendingMouseMove = false;
@@ -382,6 +400,10 @@ function renderFrame() {
 }
 
 window.electronAPI.onFrame((jpeg, w, h) => {
+  if (firstFrameTimer !== null) {
+    clearTimeout(firstFrameTimer); firstFrameTimer = null;
+    if (connected) overlay.classList.add('hidden'); // hide "no signal" overlay if it appeared
+  }
   frameWidth = w; frameHeight = h;
   pendingWidth  = w;
   pendingHeight = h;
